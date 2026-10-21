@@ -5,6 +5,10 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
@@ -120,6 +124,61 @@ public class ConfiguracionIA {
         ConfiguracionIA configuracion = new ConfiguracionIA(proveedor, clave, modelo, url, tiempo);
         configuracion.origen = origenLectura;
         return configuracion;
+    }
+
+    /**
+     * Guarda esta configuración en config.properties (en la carpeta actual).
+     * <p>
+     * El archivo está incluido en .gitignore, por lo que la clave no se sube
+     * al repositorio. Se usa {@link Properties#store} para escapar
+     * correctamente los caracteres especiales.
+     * </p>
+     *
+     * @return el archivo escrito
+     * @throws IOException si no se pudo escribir el archivo
+     */
+    public File guardar() throws IOException {
+        Properties propiedades = new Properties();
+        propiedades.setProperty("proveedor", proveedor);
+        propiedades.setProperty("api_key", apiKey);
+        propiedades.setProperty("modelo", modelo);
+        propiedades.setProperty("url_base", urlBase);
+        propiedades.setProperty("tiempo_espera_segundos", String.valueOf(tiempoEsperaSegundos));
+
+        File archivo = new File(NOMBRE_ARCHIVO);
+        OutputStream salida = null;
+        try {
+            salida = new FileOutputStream(archivo);
+            Writer escritor = new OutputStreamWriter(salida, StandardCharsets.UTF_8);
+            propiedades.store(escritor, " Configuracion del Asistente de IA (generado por la calculadora)."
+                    + " NO compartir: contiene la clave de API.");
+            escritor.flush();
+        } finally {
+            if (salida != null) {
+                salida.close();
+            }
+        }
+        this.origen = "archivo " + archivo.getAbsolutePath();
+        return archivo;
+    }
+
+    /**
+     * @return true si la variable de entorno CALCULADORA_IA_API_KEY está definida
+     *         (en ese caso tiene prioridad sobre la clave del archivo)
+     */
+    public static boolean hayClaveEnEntorno() {
+        String valor = System.getenv(VARIABLE_ENTORNO_CLAVE);
+        return valor != null && !valor.trim().isEmpty();
+    }
+
+    /** @return modelo escrito por el usuario (puede ser vacío) */
+    public String getModelo() {
+        return modelo;
+    }
+
+    /** @return URL base escrita por el usuario (puede ser vacía) */
+    public String getUrlBase() {
+        return urlBase;
     }
 
     /** @return true si hay una clave de API configurada */

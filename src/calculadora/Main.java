@@ -1,8 +1,11 @@
 package calculadora;
 
 import calculadora.vista.VentanaCalculadora;
+import calculadora.vista.estilo.Tema;
 
+import javax.swing.BorderFactory;
 import javax.swing.SwingUtilities;
+import java.awt.Color;
 import javax.swing.UIManager;
 
 /**
@@ -26,6 +29,12 @@ public class Main {
         } catch (Exception e) {
             System.err.println("No se pudo aplicar la apariencia del sistema: " + e.getMessage());
         }
+
+        // Estilo de los textos de ayuda emergentes (tooltips)
+        UIManager.put("ToolTip.font", Tema.texto(12.5f));
+        UIManager.put("ToolTip.background", Tema.TEXTO);
+        UIManager.put("ToolTip.foreground", Color.WHITE);
+        UIManager.put("ToolTip.border", BorderFactory.createEmptyBorder(6, 10, 6, 10));
 
         SwingUtilities.invokeLater(new Runnable() {
             @Override

@@ -43,7 +43,7 @@ public class TutorIA {
      * @param configuracion configuración
      * @return el proveedor remoto o null si se debe usar solo el explicador local
      */
-    private static ProveedorIA crearProveedor(ConfiguracionIA configuracion) {
+    public static ProveedorIA crearProveedor(ConfiguracionIA configuracion) {
         String proveedor = configuracion.getProveedor();
         if (ConfiguracionIA.PROVEEDOR_ANTHROPIC.equals(proveedor) && configuracion.hayClave()) {
             return new ProveedorAnthropic(configuracion);
@@ -55,6 +55,30 @@ public class TutorIA {
             return new ProveedorCompatibleOpenAI(configuracion);
         }
         return null;
+    }
+
+    /**
+     * Envía una consulta breve al proveedor para comprobar que la clave, el
+     * modelo y la conexión funcionan. Puede tardar: usar en un SwingWorker.
+     *
+     * @param configuracion configuración a probar
+     * @return respuesta corta del modelo
+     * @throws IAException si la conexión o la clave fallan
+     */
+    public static String probarConexion(ConfiguracionIA configuracion) throws IAException {
+        ProveedorIA proveedor = crearProveedor(configuracion);
+        if (proveedor == null) {
+            throw new IAException("Falta la clave de API para el proveedor elegido");
+        }
+        String respuesta = proveedor.generarRespuesta(
+                "Eres un asistente de prueba. Responde en español con una sola frase corta.",
+                "Confirma que la conexión funciona diciendo: Conexión correcta.");
+        return limitarPalabras(limpiarFormato(respuesta), 20);
+    }
+
+    /** @return la configuración que usa este tutor */
+    public ConfiguracionIA getConfiguracion() {
+        return configuracion;
     }
 
     /**

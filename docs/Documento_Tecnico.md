@@ -163,15 +163,29 @@ funcion    ::= sin | sen | cos | exp | ln
 
 ## 7. Interfaz gráfica
 
-`VentanaCalculadora` (un método por panel):
+Diseño visual propio, dibujado con `Graphics2D` (sin librerías externas), para que se vea igual en cualquier equipo:
 
-- `crearPanelEntrada()`: función, ejemplos, operación, variable, límites, valor fijo de la otra variable.
-- `crearPanelResultado()`: pestaña **Resultado y pasos**.
-- `crearPanelGrafica()`: pestaña **Gráfica 2D**.
-- `crearPanelAsistente()`: pestaña **Asistente IA**.
-- Errores: cada tipo de excepción muestra un `JOptionPane` con título y sugerencia propios.
+| Clase | Función |
+|---|---|
+| `vista.estilo.Tema` | Paleta de colores (índigo/violeta), tipografías (Segoe UI y Consolas en Windows) y suavizado. |
+| `vista.estilo.Iconos` | Logotipo e íconos de la ventana generados por código. |
+| `vista.componentes.BotonModerno` | Botones redondeados con estados hover/presionado (primario, secundario, fantasma, chip, tecla). |
+| `vista.componentes.PanelTarjeta` | Tarjetas blancas con esquinas redondeadas y sombra. |
+| `vista.componentes.GrupoSegmentado` | Selector segmentado (operación, variable, navegación). |
+| `vista.componentes.CampoModerno` / `CampoClave` | Campos redondeados con halo de foco y texto de ayuda. |
+| `vista.componentes.Encabezado` | Barra con degradado, logotipo e insignia del estado de la IA. |
+| `vista.componentes.BarraDesplazamientoModerna` | Barras de desplazamiento delgadas. |
+| `vista.RenderizadorHtml` | Convierte los pasos y la explicación en HTML con formato. |
+| `vista.DialogoConfiguracionIA` | Ventana para elegir proveedor, clave, probar conexión y guardar. |
 
-`PanelGrafico2D`: antialiasing, cuadrícula con paso "1-2-5", marcas numéricas, curva principal (azul), derivada/antiderivada (roja discontinua), área en `[a, b]` con `AlphaComposite` (verde 35 %), zoom con rueda centrado en el cursor, arrastre y doble clic para restablecer. Corta la curva en puntos no definidos y asíntotas.
+`VentanaCalculadora` (un método por zona):
+
+- `crearEncabezado()`: título, insignia de la IA, botones Configurar IA y Ayuda.
+- `crearTarjetaEntrada()`, `crearTarjetaTeclado()`, `crearTarjetaEjemplos()`: columna izquierda.
+- `crearTarjetaResultado()`: resultado destacado; los errores se muestran aquí en rojo, sin ventanas emergentes.
+- `crearZonaSecciones()`: navegación con `CardLayout` entre **Procedimiento**, **Gráfica 2D** y **Asistente IA**.
+
+`PanelGrafico2D`: antialiasing, cuadrícula con paso "1-2-5", marcas numéricas, curva principal (índigo), derivada/antiderivada (rosa discontinua), área en `[a, b]` con `AlphaComposite` (turquesa 35 %), zoom con rueda centrado en el cursor, arrastre y doble clic para restablecer. Corta la curva en puntos no definidos y asíntotas.
 
 ## 8. Pruebas
 

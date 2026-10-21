@@ -34,45 +34,56 @@ También puede hacer **doble clic** en `ejecutar.bat`. La primera vez compila au
 
 ![Resultado y pasos](capturas/resultado_y_pasos.png)
 
+La ventana tiene tres zonas:
+
+- **Encabezado:** muestra qué IA está activa (punto verde = IA en línea, punto ámbar = Explicador local) y los botones **Configurar IA** y **Ayuda**.
+- **Columna izquierda:** los datos de entrada, el teclado matemático y los ejemplos rápidos.
+- **Columna derecha:** la tarjeta de **resultado** y las secciones **Procedimiento**, **Gráfica 2D** y **Asistente IA**.
+
 ### Datos de entrada
 
 | Campo | Descripción |
 |---|---|
-| **Función f** | Expresión a calcular. Pulse Enter para calcular. |
-| **Ejemplos** | Lista desplegable con funciones listas para probar. |
-| **Operación** | Derivada, Integral indefinida, Integral definida [a, b] o Evaluar en un punto. |
+| **Función f(x, y)** | Expresión a calcular. Pulse Enter para calcular. |
+| **Operación** | Selector: Derivada, ∫ Indefinida, ∫ Definida o Evaluar. |
 | **Variable** | Variable de trabajo: x o y. La otra se trata como constante. |
-| **Límite a / Límite b** | Límites de la integral definida. Admiten `1/2`, `pi`, `pi/2`. |
 | **Valor fijo de y (o x)** | Valor numérico de la otra variable, usado para graficar, evaluar e integrar definidamente. |
+| **Límite inferior (a) / superior (b)** | Límites de la integral definida (o el punto, al evaluar). Admiten `1/2`, `pi`, `pi/2`. |
 
-Botones: **Calcular**, **Limpiar** y **Ayuda** (resumen de la sintaxis).
+Botones: **Calcular** y **Limpiar**.
 
-### Pestaña "Resultado y pasos"
+- **Teclado matemático:** inserta símbolos (x², √x, sin, cos, e^, ln, π...) donde está el cursor. `←` borra un carácter y `C` borra todo.
+- **Ejemplos rápidos:** al hacer clic se copia el ejemplo y se calcula de inmediato.
+- **Copiar** (en la tarjeta de resultado): copia el resultado al portapapeles.
 
-Muestra el resultado en grande y el procedimiento numerado: qué regla se aplicó a cada término, con qué coeficiente y exponente, y cómo se unieron los resultados.
+Si hay un error, la tarjeta de resultado se pone roja y explica qué corregir:
 
-### Pestaña "Gráfica 2D"
+![Mensaje de error](capturas/mensaje_error.png)
+
+### Sección "Procedimiento"
+
+Muestra el procedimiento numerado: para cada término, el nombre de la regla, la explicación con coeficientes y exponentes, y el resultado parcial resaltado. Al final aparece el resultado en un recuadro verde.
+
+### Sección "Gráfica 2D"
 
 ![Gráfica de una integral definida](capturas/grafica_integral_definida.png)
 
-- **Línea azul:** la función f.
-- **Línea roja discontinua:** la derivada (en derivadas) o la antiderivada con C = 0 (en integrales indefinidas).
-- **Área verde:** área bajo la curva entre a y b (integrales definidas). Las zonas debajo del eje restan al resultado.
+- **Línea índigo:** la función f.
+- **Línea rosa discontinua:** la derivada (en derivadas) o la antiderivada con C = 0 (en integrales indefinidas).
+- **Área turquesa:** área bajo la curva entre a y b (integrales definidas). Las zonas debajo del eje restan al resultado.
 - **Rueda del ratón:** acercar o alejar (zoom centrado en el cursor).
 - **Arrastrar:** mover la vista.
 - **Doble clic** o botón **Restablecer vista:** volver a la vista inicial.
 
-![Gráfica de una derivada](capturas/grafica_derivada.png)
-
-### Pestaña "Asistente IA"
+### Sección "Asistente IA"
 
 ![Asistente IA](capturas/asistente_ia.png)
 
 1. Realice un cálculo.
 2. (Opcional) Escriba una pregunta, por ejemplo: *¿por qué la derivada de una constante es cero?*
-3. Pulse **Explicar con IA**.
+3. Pulse **Explicar con IA** (o Enter en el campo de la pregunta).
 
-La IA **no calcula**: recibe los pasos que obtuvo el motor de la calculadora y los explica en texto sencillo (máximo 250 palabras). La barra inferior indica qué fuente generó la explicación.
+La IA **no calcula**: recibe los pasos que obtuvo el motor de la calculadora y los explica en texto sencillo (máximo 250 palabras). La etiqueta "Explicado por" indica qué fuente generó la explicación.
 
 ## 4. Cómo escribir las funciones
 
@@ -118,36 +129,28 @@ La IA **no calcula**: recibe los pasos que obtuvo el motor de la calculadora y l
 
 ## 7. Configurar el Asistente de IA (opcional)
 
-1. Copie `config.properties.ejemplo` con el nombre `config.properties` (en la misma carpeta).
-2. Edite los valores:
+La forma más fácil es desde la propia aplicación:
 
-```properties
-# Anthropic (Claude)
-proveedor=anthropic
-api_key=SU_CLAVE_AQUI
-modelo=
-```
+1. Pulse **Configurar IA** (en el encabezado o en la sección Asistente IA).
+2. Elija el proveedor: **Sin conexión**, **Claude**, **OpenAI** u **Ollama (local)**.
+3. Pegue su **clave de API** (Claude u OpenAI). Ollama no necesita clave.
+4. Pulse **Probar conexión**. Debe aparecer "Conexión correcta".
+5. Pulse **Guardar**. El encabezado mostrará el punto verde con el proveedor activo.
 
-```properties
-# OpenAI
-proveedor=openai
-api_key=SU_CLAVE_AQUI
-```
+![Configurar IA](capturas/configurar_ia.png)
 
-```properties
-# Ollama (modelo gratuito que corre en su computadora, sin clave)
-proveedor=ollama
-modelo=llama3.2
-```
+| Proveedor | Dónde obtener la clave | Costo |
+|---|---|---|
+| Claude (Anthropic) | console.anthropic.com → API Keys (empieza con `sk-ant-`) | Pago por uso |
+| OpenAI | platform.openai.com → API keys (empieza con `sk-`) | Pago por uso |
+| Ollama | Instale ollama.com y ejecute `ollama pull llama3.2` | Gratis, sin Internet |
 
-3. En la pestaña Asistente IA pulse **Recargar configuración**.
-
-También puede definir la clave sin archivo, con una variable de entorno (PowerShell):
+La configuración se guarda en `config.properties`, en la carpeta del proyecto. También puede editar ese archivo a mano (vea `config.properties.ejemplo`) o definir la clave con una variable de entorno (PowerShell):
 
 ```powershell
 $env:CALCULADORA_IA_API_KEY = "SU_CLAVE_AQUI"
 .\ejecutar.bat
 ```
 
-**Seguridad:** `config.properties` está en `.gitignore`; nunca suba su clave a GitHub.
+**Seguridad:** `config.properties` está en `.gitignore`; nunca suba su clave a GitHub ni la comparta.
 Si no hay clave, no hay Internet o el proveedor falla, la calculadora usa automáticamente el **Explicador Local**.

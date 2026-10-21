@@ -3,6 +3,7 @@ package calculadora.vista;
 import calculadora.modelo.Expresion;
 import calculadora.modelo.Variable;
 import calculadora.util.FormatoNumeros;
+import calculadora.vista.estilo.Tema;
 
 import javax.swing.JPanel;
 import java.awt.AlphaComposite;
@@ -10,7 +11,6 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -49,13 +49,13 @@ public class PanelGrafico2D extends JPanel {
     private static final double ESCALA_MINIMA = 0.5;
     private static final double ESCALA_MAXIMA = 20000.0;
 
-    private static final Color COLOR_FONDO = new Color(252, 252, 255);
-    private static final Color COLOR_CUADRICULA = new Color(225, 228, 235);
-    private static final Color COLOR_EJES = new Color(60, 60, 70);
-    private static final Color COLOR_FUNCION = new Color(25, 90, 200);
-    private static final Color COLOR_SECUNDARIA = new Color(210, 60, 50);
-    private static final Color COLOR_AREA = new Color(40, 170, 110);
-    private static final Color COLOR_TEXTO = new Color(70, 70, 80);
+    private static final Color COLOR_FONDO = Color.WHITE;
+    private static final Color COLOR_CUADRICULA = new Color(236, 239, 245);
+    private static final Color COLOR_EJES = new Color(100, 116, 139);
+    private static final Color COLOR_FUNCION = Tema.GRAFICA_FUNCION;
+    private static final Color COLOR_SECUNDARIA = Tema.GRAFICA_SECUNDARIA;
+    private static final Color COLOR_AREA = Tema.GRAFICA_AREA;
+    private static final Color COLOR_TEXTO = Tema.TEXTO_SECUNDARIO;
 
     // Datos que se grafican
     private transient Expresion funcion;
@@ -309,7 +309,7 @@ public class PanelGrafico2D extends JPanel {
         }
 
         // Marcas numéricas
-        g2.setFont(new Font(Font.DIALOG, Font.PLAIN, 11));
+        g2.setFont(Tema.texto(11.5f));
         FontMetrics metricas = g2.getFontMetrics();
         int decimales = Math.max(0, (int) Math.ceil(-Math.log10(paso)) + 1);
 
@@ -355,7 +355,7 @@ public class PanelGrafico2D extends JPanel {
         if (ejeX >= 0 && ejeX < getHeight() && ejeY >= 0 && ejeY < getWidth()) {
             g2.drawString("0", ejeY + 5, ejeX + 15);
         }
-        g2.setFont(new Font(Font.DIALOG, Font.BOLD, 13));
+        g2.setFont(Tema.negrita(13f));
         g2.drawString(variable.getSimbolo(), getWidth() - 16, ejeXVisible - 8);
         g2.drawString("f", ejeYVisible + 8, 16);
     }
@@ -444,7 +444,7 @@ public class PanelGrafico2D extends JPanel {
         int xb = (int) Math.round(aPantallaX(b));
         g2.drawLine(xa, 0, xa, getHeight());
         g2.drawLine(xb, 0, xb, getHeight());
-        g2.setFont(new Font(Font.DIALOG, Font.BOLD, 12));
+        g2.setFont(Tema.negrita(12f));
         g2.drawString("a = " + FormatoNumeros.formatearDecimal(a, 4), xa + 4, getHeight() - 8);
         g2.drawString("b = " + FormatoNumeros.formatearDecimal(b, 4), xb + 4, getHeight() - 24);
     }
@@ -457,13 +457,13 @@ public class PanelGrafico2D extends JPanel {
         double py = aPantallaY(puntoY.doubleValue());
         g2.setColor(COLOR_SECUNDARIA);
         g2.fill(new Ellipse2D.Double(px - 5, py - 5, 10, 10));
-        g2.setFont(new Font(Font.DIALOG, Font.BOLD, 12));
+        g2.setFont(Tema.negrita(12f));
         g2.drawString("(" + FormatoNumeros.formatearDecimal(puntoX.doubleValue(), 4) + ", "
                 + FormatoNumeros.formatearDecimal(puntoY.doubleValue(), 4) + ")", (int) px + 8, (int) py - 8);
     }
 
     private void dibujarLeyenda(Graphics2D g2) {
-        g2.setFont(new Font(Font.DIALOG, Font.PLAIN, 12));
+        g2.setFont(Tema.texto(12.5f));
         FontMetrics metricas = g2.getFontMetrics();
         String linea1 = "f = " + etiquetaFuncion;
         String linea2 = null;
@@ -520,8 +520,8 @@ public class PanelGrafico2D extends JPanel {
     }
 
     private void dibujarMensajeVacio(Graphics2D g2) {
-        String mensaje = "Realice un cálculo para ver aquí la gráfica de la función";
-        g2.setFont(new Font(Font.DIALOG, Font.ITALIC, 14));
+        String mensaje = "Calcula algo para ver aquí la gráfica de la función";
+        g2.setFont(Tema.texto(15f));
         FontMetrics metricas = g2.getFontMetrics();
         int x = (getWidth() - metricas.stringWidth(mensaje)) / 2;
         g2.setColor(COLOR_TEXTO);

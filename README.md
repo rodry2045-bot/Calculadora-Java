@@ -12,6 +12,7 @@ Aplicación de escritorio en **Java Swing** que deriva, integra y evalúa funcio
 - **Integrales definidas** con el Teorema Fundamental del Cálculo y validación de dominio (integrales impropias, raíces no reales).
 - **Procedimiento paso a paso** generado por cada clase de término (`describirDerivada` / `describirIntegral`).
 - **Resultados exactos**: enteros, fracciones N/D (D ≤ 100) y decimales.
+- **Interfaz moderna** dibujada con Graphics2D: tarjetas, botones redondeados, selectores segmentados y teclado matemático.
 - **Graficador 2D**: antialiasing, cuadrícula, zoom con la rueda, arrastre y área sombreada con `AlphaComposite`.
 - **Asistente de IA**: Anthropic, OpenAI u Ollama local, con respaldo automático al **Explicador Local** sin red.
 - **Sin dependencias**: JDK 11+, `java.net.http.HttpClient` y JSON manual (`JsonSencillo`).
@@ -29,12 +30,9 @@ O directamente: `java -jar dist\CalculadoraCalculo.jar`
 
 ### Asistente de IA (opcional)
 
-```powershell
-Copy-Item config.properties.ejemplo config.properties
-notepad config.properties     # proveedor=anthropic | openai | ollama y su api_key
-```
+Pulse **Configurar IA** en la aplicación, elija Claude, OpenAI u Ollama, pegue su clave, pulse **Probar conexión** y **Guardar**. Sin configuración se usa el Explicador Local (sin Internet).
 
-o bien `$env:CALCULADORA_IA_API_KEY = "su-clave"`. Sin configuración, se usa el Explicador Local.
+![Asistente IA](docs/capturas/asistente_ia.png)
 
 ## Estructura
 

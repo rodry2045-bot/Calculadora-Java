@@ -59,7 +59,7 @@ public class ExplicadorLocal {
             numero++;
         }
         if (seOmitieronPasos) {
-            pasosTexto.append("(El detalle completo está en la pestaña Resultado y pasos.)\n");
+            pasosTexto.append("(El detalle completo está en la sección Procedimiento.)\n");
         }
 
         // 4) Unir todo
@@ -148,7 +148,7 @@ public class ExplicadorLocal {
             return "comprueba tu resultado derivándolo: debes obtener la función original. No olvides la constante C.";
         }
         if (tipo == ResultadoCalculo.TipoOperacion.INTEGRAL_DEFINIDA) {
-            return "observa el área sombreada en la pestaña Gráfica 2D; las zonas bajo el eje restan al resultado.";
+            return "observa el área sombreada en la sección Gráfica 2D; las zonas bajo el eje restan al resultado.";
         }
         return "revisa los signos al sustituir valores negativos.";
     }
