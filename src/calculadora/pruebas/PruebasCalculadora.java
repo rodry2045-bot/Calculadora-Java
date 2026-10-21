@@ -1,7 +1,12 @@
 package calculadora.pruebas;
 
 import calculadora.excepciones.CalculadoraException;
+import calculadora.excepciones.DominioInvalidoException;
+import calculadora.excepciones.ExpresionInvalidaException;
+import calculadora.excepciones.OperacionNoSoportadaException;
+import calculadora.modelo.Calculadora;
 import calculadora.modelo.Expresion;
+import calculadora.modelo.ResultadoCalculo;
 import calculadora.modelo.Termino;
 import calculadora.modelo.TerminoLogaritmico;
 import calculadora.modelo.TerminoPolinomico;
@@ -33,6 +38,11 @@ public class PruebasCalculadora {
 
         probarFormatoNumeros();
         probarTerminosPolinomicos();
+        probarAnalizador();
+        probarDerivadas();
+        probarIntegrales();
+        probarIntegralesDefinidas();
+        probarErrores();
 
         System.out.println();
         System.out.println("----------------------------------------------");
@@ -94,6 +104,173 @@ public class PruebasCalculadora {
             verificarNumero("Evaluar 2x^2 - 2x + 1 en x = 2", 5.0, e.evaluar(2.0, 0.0));
         } catch (CalculadoraException ex) {
             fallo("Excepción inesperada en términos polinómicos: " + ex.getMessage());
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Etapa 2: analizador y fachada
+    // ------------------------------------------------------------------
+
+    private static final Calculadora CALCULADORA = new Calculadora();
+
+    private static void probarAnalizador() {
+        seccion("Analizador de expresiones");
+        verificarInterpretacion("3x^2 - 2x + 1", "3x^2 - 2x + 1");
+        verificarInterpretacion("x^2*y", "x^2y");
+        verificarInterpretacion("2 x y + x y", "3xy");
+        verificarInterpretacion("1/x", "x^(-1)");
+        verificarInterpretacion("x^(1/2)", "x^(1/2)");
+        verificarInterpretacion("3/4x^2", "(3/4)x^2");
+        verificarInterpretacion("-x^2", "-x^2");
+        verificarInterpretacion("(2x)^2", "4x^2");
+        verificarInterpretacion("2sin(3x)", "2sin(3x)");
+        verificarInterpretacion("sen(x) + cos(2y)", "sin(x) + cos(2y)");
+        verificarInterpretacion("e^(2x)", "e^(2x)");
+        verificarInterpretacion("e^x", "e^x");
+        verificarInterpretacion("e^-x", "e^(-x)");
+        verificarInterpretacion("exp(0.5x)", "e^((1/2)x)");
+        verificarInterpretacion("4ln(x)", "4ln(x)");
+        verificarInterpretacion("y*cos(x)", "ycos(x)");
+        verificarInterpretacion("x - x", "0");
+        verificarInterpretacion("2·x × 3", "6x");
+    }
+
+    private static void probarDerivadas() {
+        seccion("Derivadas (polinomios y funciones trascendentales)");
+        verificarDerivada("3x^2 - 2x + 1", Variable.X, "6x - 2");
+        verificarDerivada("5", Variable.X, "0");
+        verificarDerivada("x^2y", Variable.X, "2xy");
+        verificarDerivada("x^2y", Variable.Y, "x^2");
+        verificarDerivada("2sin(3x)", Variable.X, "6cos(3x)");
+        verificarDerivada("cos(2x)", Variable.X, "-2sin(2x)");
+        verificarDerivada("3e^(2x)", Variable.X, "6e^(2x)");
+        verificarDerivada("4ln(x)", Variable.X, "4x^(-1)");
+        verificarDerivada("y*sin(x)", Variable.X, "ycos(x)");
+        verificarDerivada("y*sin(x)", Variable.Y, "sin(x)");
+        verificarDerivada("1/x", Variable.X, "-x^(-2)");
+        verificarDerivada("x^(1/2)", Variable.X, "(1/2)x^(-1/2)");
+    }
+
+    private static void probarIntegrales() {
+        seccion("Integrales indefinidas");
+        verificarIntegral("3x^2", Variable.X, "x^3");
+        verificarIntegral("6x^2 + 2x + 1", Variable.X, "2x^3 + x^2 + x");
+        verificarIntegral("1/x", Variable.X, "ln|x|");
+        verificarIntegral("5x^(-1)", Variable.X, "5ln|x|");
+        verificarIntegral("sin(2x)", Variable.X, "-(1/2)cos(2x)");
+        verificarIntegral("3cos(3x)", Variable.X, "sin(3x)");
+        verificarIntegral("e^(2x)", Variable.X, "(1/2)e^(2x)");
+        verificarIntegral("x^2y", Variable.Y, "(1/2)x^2y^2");
+        verificarIntegral("y*sin(x)", Variable.Y, "(1/2)y^2sin(x)");
+        verificarIntegral("y*sin(x)", Variable.X, "-ycos(x)");
+        try {
+            ResultadoCalculo r = CALCULADORA.integrarIndefinida("2x", Variable.X);
+            verificarVerdadero("La integral indefinida termina en + C", r.getTextoResultado().endsWith("+ C"));
+        } catch (CalculadoraException e) {
+            fallo("Constante de integración: " + e.getMessage());
+        }
+    }
+
+    private static void probarIntegralesDefinidas() {
+        seccion("Integrales definidas (Teorema Fundamental del Cálculo)");
+        verificarDefinida("x^2", Variable.X, 0, 3, 0, 9.0);
+        verificarDefinida("3x^2 + 1", Variable.X, 1, 2, 0, 8.0);
+        verificarDefinida("sin(x)", Variable.X, 0, Math.PI, 0, 2.0);
+        verificarDefinida("e^x", Variable.X, 0, 1, 0, Math.E - 1.0);
+        verificarDefinida("1/x", Variable.X, 1, Math.E, 0, 1.0);
+        verificarDefinida("x*y", Variable.X, 0, 2, 3, 6.0);
+        verificarDefinida("x", Variable.X, 2, 0, 0, -2.0);
+    }
+
+    private static void probarErrores() {
+        seccion("Manejo de errores");
+        verificarExcepcionDefinida("1/x en [-1, 1] (impropia)", "1/x", -1, 1, DominioInvalidoException.class);
+        verificarExcepcionDefinida("x^(1/2) en [-4, 0] (no real)", "x^(1/2)", -4, 0, DominioInvalidoException.class);
+        verificarExcepcionIntegral("∫ ln(x) dx (por partes)", "ln(x)", OperacionNoSoportadaException.class);
+        verificarExcepcionIntegral("∫ x·sin(x) dx (por partes)", "x*sin(x)", OperacionNoSoportadaException.class);
+        verificarExcepcionIntegral("Expresión vacía", "   ", ExpresionInvalidaException.class);
+        verificarExcepcionIntegral("Paréntesis sin cerrar", "sin(2x", ExpresionInvalidaException.class);
+        verificarExcepcionIntegral("Símbolo desconocido", "3z + 1", ExpresionInvalidaException.class);
+        verificarExcepcionIntegral("Producto de funciones", "sin(x)cos(x)", ExpresionInvalidaException.class);
+        verificarExcepcionIntegral("Argumento no lineal", "sin(x^2)", ExpresionInvalidaException.class);
+        try {
+            CALCULADORA.derivar("x*e^x", Variable.X);
+            fallo("d/dx x·e^x debía pedir la regla del producto");
+        } catch (OperacionNoSoportadaException e) {
+            exito("d/dx x·e^x pide la regla del producto");
+        } catch (CalculadoraException e) {
+            fallo("Excepción incorrecta: " + e);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Verificaciones específicas de la calculadora
+    // ------------------------------------------------------------------
+
+    private static void verificarInterpretacion(String entrada, String esperado) {
+        try {
+            Expresion e = CALCULADORA.interpretar(entrada);
+            verificarTexto("Interpretar \"" + entrada + "\"", esperado, e.toString());
+        } catch (CalculadoraException ex) {
+            fallo("Interpretar \"" + entrada + "\" lanzó: " + ex.getMessage());
+        }
+    }
+
+    private static void verificarDerivada(String entrada, Variable v, String esperado) {
+        try {
+            ResultadoCalculo r = CALCULADORA.derivar(entrada, v);
+            verificarTexto("d/d" + v + " [" + entrada + "]", esperado, r.getExpresionResultado().toString());
+        } catch (CalculadoraException ex) {
+            fallo("d/d" + v + " [" + entrada + "] lanzó: " + ex.getMessage());
+        }
+    }
+
+    private static void verificarIntegral(String entrada, Variable v, String esperado) {
+        try {
+            ResultadoCalculo r = CALCULADORA.integrarIndefinida(entrada, v);
+            verificarTexto("∫ [" + entrada + "] d" + v, esperado, r.getExpresionResultado().toString());
+        } catch (CalculadoraException ex) {
+            fallo("∫ [" + entrada + "] d" + v + " lanzó: " + ex.getMessage());
+        }
+    }
+
+    private static void verificarDefinida(String entrada, Variable v, double a, double b, double otra,
+                                          double esperado) {
+        String nombre = "∫ [" + entrada + "] d" + v + " de " + FormatoNumeros.formatear(a) + " a "
+                + FormatoNumeros.formatear(b);
+        try {
+            ResultadoCalculo r = CALCULADORA.integrarDefinida(entrada, v, a, b, otra);
+            verificarNumero(nombre, esperado, r.getValorNumerico().doubleValue());
+        } catch (CalculadoraException ex) {
+            fallo(nombre + " lanzó: " + ex.getMessage());
+        }
+    }
+
+    private static void verificarExcepcionDefinida(String nombre, String entrada, double a, double b,
+                                                   Class<?> tipoEsperado) {
+        try {
+            CALCULADORA.integrarDefinida(entrada, Variable.X, a, b, 0);
+            fallo(nombre + " | se esperaba " + tipoEsperado.getSimpleName());
+        } catch (CalculadoraException ex) {
+            verificarTipoExcepcion(nombre, tipoEsperado, ex);
+        }
+    }
+
+    private static void verificarExcepcionIntegral(String nombre, String entrada, Class<?> tipoEsperado) {
+        try {
+            CALCULADORA.integrarIndefinida(entrada, Variable.X);
+            fallo(nombre + " | se esperaba " + tipoEsperado.getSimpleName());
+        } catch (CalculadoraException ex) {
+            verificarTipoExcepcion(nombre, tipoEsperado, ex);
+        }
+    }
+
+    private static void verificarTipoExcepcion(String nombre, Class<?> tipoEsperado, Exception ex) {
+        if (tipoEsperado.isInstance(ex)) {
+            exito(nombre + " -> " + ex.getMessage());
+        } else {
+            fallo(nombre + " | se esperaba " + tipoEsperado.getSimpleName() + " pero fue "
+                    + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
