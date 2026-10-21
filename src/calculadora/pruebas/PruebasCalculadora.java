@@ -3,6 +3,12 @@ package calculadora.pruebas;
 import calculadora.excepciones.CalculadoraException;
 import calculadora.excepciones.DominioInvalidoException;
 import calculadora.excepciones.ExpresionInvalidaException;
+import calculadora.excepciones.IAException;
+import calculadora.ia.ConfiguracionIA;
+import calculadora.ia.ProveedorAnthropic;
+import calculadora.ia.ProveedorCompatibleOpenAI;
+import calculadora.ia.TutorIA;
+import calculadora.util.JsonSencillo;
 import calculadora.excepciones.OperacionNoSoportadaException;
 import calculadora.modelo.Calculadora;
 import calculadora.modelo.Expresion;
@@ -43,6 +49,8 @@ public class PruebasCalculadora {
         probarIntegrales();
         probarIntegralesDefinidas();
         probarErrores();
+        probarJson();
+        probarModuloIA();
 
         System.out.println();
         System.out.println("----------------------------------------------");
@@ -200,6 +208,86 @@ public class PruebasCalculadora {
             exito("d/dx x·e^x pide la regla del producto");
         } catch (CalculadoraException e) {
             fallo("Excepción incorrecta: " + e);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Etapa 4: JSON e Inteligencia Artificial (sin necesidad de red)
+    // ------------------------------------------------------------------
+
+    private static void probarJson() {
+        seccion("JsonSencillo");
+        String json = JsonSencillo.objeto(
+                "texto", JsonSencillo.cadena("Hola \"mundo\"\nñ ∫"),
+                "numero", "3.5",
+                "lista", JsonSencillo.arreglo("1", "true", "null"));
+        verificarTexto("Escribir objeto", "{\"texto\":\"Hola \\\"mundo\\\"\\nñ ∫\",\"numero\":3.5,"
+                + "\"lista\":[1,true,null]}", json);
+        Object raiz = JsonSencillo.parsear(json);
+        verificarTexto("Leer texto con escapes", "Hola \"mundo\"\nñ ∫",
+                String.valueOf(JsonSencillo.obtenerRuta(raiz, "texto")));
+        verificarTexto("Leer número", "3.5", String.valueOf(JsonSencillo.obtenerRuta(raiz, "numero")));
+        verificarTexto("Leer booleano en lista", "true", String.valueOf(JsonSencillo.obtenerRuta(raiz, "lista", 1)));
+        verificarVerdadero("Ruta inexistente devuelve null", JsonSencillo.obtenerRuta(raiz, "no", 0) == null);
+        Object unicode = JsonSencillo.parsear("{\"a\": \"\\u00e1rea\"}");
+        verificarTexto("Leer \\u00e1", "área", String.valueOf(JsonSencillo.obtenerRuta(unicode, "a")));
+        try {
+            JsonSencillo.parsear("{\"a\": }");
+            fallo("JSON mal formado debía fallar");
+        } catch (IllegalArgumentException e) {
+            exito("JSON mal formado lanza IllegalArgumentException");
+        }
+    }
+
+    private static void probarModuloIA() {
+        seccion("Módulo de IA");
+        try {
+            String respuestaAnthropic = "{\"id\":\"msg_1\",\"type\":\"message\",\"content\":"
+                    + "[{\"type\":\"text\",\"text\":\"Primero se aplica la regla.\"}]}";
+            verificarTexto("Extraer texto de Anthropic", "Primero se aplica la regla.",
+                    ProveedorAnthropic.extraerTexto(200, respuestaAnthropic));
+            String respuestaOpenAI = "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"Hola\"}}]}";
+            verificarTexto("Extraer texto de OpenAI/Ollama", "Hola",
+                    ProveedorCompatibleOpenAI.extraerTexto(200, respuestaOpenAI));
+        } catch (IAException e) {
+            fallo("Extracción de texto: " + e.getMessage());
+        }
+        try {
+            ProveedorAnthropic.extraerTexto(401, "{\"type\":\"error\",\"error\":{\"message\":\"invalid x-api-key\"}}");
+            fallo("Un código 401 debía lanzar IAException");
+        } catch (IAException e) {
+            exito("Código 401 -> " + e.getMessage());
+        }
+
+        verificarTexto("Limpiar Markdown y LaTeX", "Titulo\nLa derivada de x^2 es 2x",
+                TutorIA.limpiarFormato("## Titulo\nLa **derivada** de $x^2$ es `2x`"));
+        String largo = "uno dos tres cuatro cinco";
+        verificarTexto("Limitar a 3 palabras", "uno dos tres ...", TutorIA.limitarPalabras(largo, 3));
+
+        try {
+            ResultadoCalculo r = CALCULADORA.integrarDefinida("3x^2 + 2sin(x) - 4e^(2x)", Variable.X, 0, 1, 0);
+
+            // Sin clave: debe usarse el explicador local
+            TutorIA tutorLocal = new TutorIA(new ConfiguracionIA("anthropic", "", "", "", 5));
+            verificarVerdadero("Sin clave no hay proveedor remoto", !tutorLocal.tieneProveedorRemoto());
+            String explicacion = tutorLocal.explicar(r, "");
+            verificarVerdadero("Explicación local no vacía", explicacion.length() > 50);
+            verificarVerdadero("Explicación local con máximo 250 palabras ("
+                    + TutorIA.contarPalabras(explicacion) + ")", TutorIA.contarPalabras(explicacion) <= 251);
+            verificarTexto("Fuente local", "Explicador Local", tutorLocal.getUltimaFuente());
+
+            // Proveedor inalcanzable: debe conmutar automáticamente al explicador local
+            TutorIA tutorSinRed = new TutorIA(new ConfiguracionIA("ollama", "", "modelo", "http://127.0.0.1:9/v1", 3));
+            String respaldo = tutorSinRed.explicar(r, "¿Por qué no se suma C?");
+            verificarVerdadero("Respaldo automático sin red", tutorSinRed.getUltimaFuente().startsWith("Explicador Local (respaldo"));
+            verificarVerdadero("Respaldo con contenido", respaldo.contains("Resultado final"));
+
+            // El mensaje para la IA incluye los pasos del motor, no pide calcular
+            String mensaje = tutorLocal.construirMensaje(r, "");
+            verificarVerdadero("El mensaje incluye el procedimiento", mensaje.contains("Teorema Fundamental"));
+            verificarVerdadero("La instrucción prohíbe calcular", tutorLocal.construirInstruccionSistema().contains("NO calcules"));
+        } catch (CalculadoraException e) {
+            fallo("Módulo IA: " + e.getMessage());
         }
     }
 
