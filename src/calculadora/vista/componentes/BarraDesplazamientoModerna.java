@@ -37,7 +37,7 @@ public class BarraDesplazamientoModerna extends BasicScrollBarUI {
 
     @Override
     protected void configureScrollBarColors() {
-        thumbColor = new Color(203, 210, 222);
+        thumbColor = new Color(52, 62, 77);
         trackColor = new Color(0, 0, 0, 0);
     }
 
@@ -71,7 +71,7 @@ public class BarraDesplazamientoModerna extends BasicScrollBarUI {
         }
         Graphics2D g2 = (Graphics2D) g.create();
         Tema.suavizar(g2);
-        g2.setColor(isThumbRollover() ? new Color(160, 170, 190) : thumbColor);
+        g2.setColor(isThumbRollover() ? new Color(80, 94, 114) : thumbColor);
         g2.fillRoundRect(limites.x + 2, limites.y + 2, limites.width - 4, limites.height - 4, 8, 8);
         g2.dispose();
     }

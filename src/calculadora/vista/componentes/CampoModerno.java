@@ -35,7 +35,8 @@ public class CampoModerno extends JTextField {
         setFont(Tema.texto(14f));
         setForeground(Tema.TEXTO);
         setCaretColor(Tema.PRIMARIO);
-        setSelectionColor(new Color(199, 210, 254));
+        setSelectionColor(new Color(21, 94, 117));
+        setDisabledTextColor(Tema.TEXTO_TENUE);
         setSelectedTextColor(Tema.TEXTO);
         setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
         addFocusListener(new FocusAdapter() {
@@ -75,13 +76,13 @@ public class CampoModerno extends JTextField {
         Tema.suavizar(g2);
         RoundRectangle2D forma = new RoundRectangle2D.Double(1, 1, getWidth() - 2.0, getHeight() - 2.0, 12, 12);
 
-        Color fondo = isEnabled() ? Tema.SUPERFICIE : Tema.SUPERFICIE_ALTERNA;
+        Color fondo = isEnabled() ? Tema.CAMPO : Tema.SUPERFICIE_ALTERNA;
         g2.setColor(fondo);
         g2.fill(forma);
 
         if (hasFocus()) {
             // Halo de foco
-            g2.setColor(new Color(129, 140, 248, 60));
+            g2.setColor(new Color(34, 211, 238, 55));
             g2.setStroke(new BasicStroke(4f));
             g2.draw(forma);
             g2.setColor(Tema.BORDE_FOCO);

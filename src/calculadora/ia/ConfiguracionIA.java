@@ -5,10 +5,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
@@ -16,18 +12,46 @@ import java.util.Properties;
 /**
  * Configuración del Asistente de IA.
  * <p>
- * Orden de lectura:
+ * <b>La IA se configura AQUÍ, en el código</b>: edite las constantes de la
+ * sección "CONFIGURACIÓN EN EL CÓDIGO" y vuelva a compilar con build.bat.
+ * </p>
+ * <p>
+ * Orden de prioridad:
  * </p>
  * <ol>
- *   <li>Archivo {@code config.properties} en la carpeta desde donde se ejecuta el programa.</li>
- *   <li>Variable de entorno {@code CALCULADORA_IA_API_KEY}: si existe, reemplaza la clave del archivo.</li>
+ *   <li>Constantes de esta clase (si {@link #CLAVE_API} no está vacía, o si el
+ *       proveedor es "ollama", que no necesita clave).</li>
+ *   <li>Variable de entorno {@code CALCULADORA_IA_API_KEY}.</li>
+ *   <li>Archivo {@code config.properties} (opcional).</li>
  * </ol>
  * <p>
- * Por seguridad, la clave NUNCA está escrita en el código fuente y el
- * archivo config.properties está excluido del repositorio (.gitignore).
+ * IMPORTANTE: si escribe su clave en el código, NO suba este archivo a un
+ * repositorio público (GitHub), porque cualquiera podría usar su clave.
+ * Si no hay clave o no hay Internet, se usa el Explicador Local.
  * </p>
  */
 public class ConfiguracionIA {
+
+    // ==================================================================
+    // CONFIGURACIÓN EN EL CÓDIGO (edite estos valores)
+    // ==================================================================
+
+    /** Proveedor: "anthropic" (Claude), "openai", "ollama" (local, gratis) o "local" (sin IA). */
+    public static final String PROVEEDOR = "anthropic";
+
+    /** Clave de API. Péguela entre las comillas. Déjela vacía para usar el Explicador Local. */
+    public static final String CLAVE_API = "";
+
+    /** Modelo. Vacío = valor por defecto (claude-haiku-5-5, gpt-4o-mini o llama3.2). */
+    public static final String MODELO = "";
+
+    /** URL base. Vacía = valor por defecto del proveedor. */
+    public static final String URL_BASE = "";
+
+    /** Tiempo máximo de espera de la respuesta, en segundos. */
+    public static final int TIEMPO_ESPERA_SEGUNDOS = 30;
+
+    // ==================================================================
 
     /** Nombre del archivo de configuración. */
     public static final String NOMBRE_ARCHIVO = "config.properties";
@@ -80,6 +104,19 @@ public class ConfiguracionIA {
      * @return configuración cargada (nunca null)
      */
     public static ConfiguracionIA cargar() {
+        // 1) Configuración escrita en el código
+        boolean codigoCompleto = !CLAVE_API.trim().isEmpty() || PROVEEDOR_OLLAMA.equalsIgnoreCase(PROVEEDOR.trim())
+                || PROVEEDOR_LOCAL.equalsIgnoreCase(PROVEEDOR.trim());
+        String claveEntornoPrevia = System.getenv(VARIABLE_ENTORNO_CLAVE);
+        boolean hayEntorno = claveEntornoPrevia != null && !claveEntornoPrevia.trim().isEmpty();
+        if (codigoCompleto && !(PROVEEDOR_LOCAL.equalsIgnoreCase(PROVEEDOR.trim()) && hayEntorno)) {
+            ConfiguracionIA desdeCodigo = new ConfiguracionIA(PROVEEDOR, CLAVE_API, MODELO, URL_BASE,
+                    TIEMPO_ESPERA_SEGUNDOS);
+            desdeCodigo.origen = "código (calculadora.ia.ConfiguracionIA)";
+            return desdeCodigo;
+        }
+
+        // 2) y 3) Variable de entorno o archivo opcional
         Properties propiedades = new Properties();
         String origenLectura = "valores por defecto (no se encontró " + NOMBRE_ARCHIVO + ")";
 
@@ -104,11 +141,12 @@ public class ConfiguracionIA {
             }
         }
 
-        String proveedor = propiedades.getProperty("proveedor", PROVEEDOR_LOCAL);
+        String proveedor = propiedades.getProperty("proveedor", PROVEEDOR);
         String clave = propiedades.getProperty("api_key", "");
-        String modelo = propiedades.getProperty("modelo", "");
-        String url = propiedades.getProperty("url_base", "");
-        int tiempo = convertirEntero(propiedades.getProperty("tiempo_espera_segundos", "30"), 30);
+        String modelo = propiedades.getProperty("modelo", MODELO);
+        String url = propiedades.getProperty("url_base", URL_BASE);
+        int tiempo = convertirEntero(propiedades.getProperty("tiempo_espera_segundos",
+                String.valueOf(TIEMPO_ESPERA_SEGUNDOS)), TIEMPO_ESPERA_SEGUNDOS);
 
         // La variable de entorno tiene prioridad sobre el archivo
         String claveEntorno = System.getenv(VARIABLE_ENTORNO_CLAVE);
@@ -124,42 +162,6 @@ public class ConfiguracionIA {
         ConfiguracionIA configuracion = new ConfiguracionIA(proveedor, clave, modelo, url, tiempo);
         configuracion.origen = origenLectura;
         return configuracion;
-    }
-
-    /**
-     * Guarda esta configuración en config.properties (en la carpeta actual).
-     * <p>
-     * El archivo está incluido en .gitignore, por lo que la clave no se sube
-     * al repositorio. Se usa {@link Properties#store} para escapar
-     * correctamente los caracteres especiales.
-     * </p>
-     *
-     * @return el archivo escrito
-     * @throws IOException si no se pudo escribir el archivo
-     */
-    public File guardar() throws IOException {
-        Properties propiedades = new Properties();
-        propiedades.setProperty("proveedor", proveedor);
-        propiedades.setProperty("api_key", apiKey);
-        propiedades.setProperty("modelo", modelo);
-        propiedades.setProperty("url_base", urlBase);
-        propiedades.setProperty("tiempo_espera_segundos", String.valueOf(tiempoEsperaSegundos));
-
-        File archivo = new File(NOMBRE_ARCHIVO);
-        OutputStream salida = null;
-        try {
-            salida = new FileOutputStream(archivo);
-            Writer escritor = new OutputStreamWriter(salida, StandardCharsets.UTF_8);
-            propiedades.store(escritor, " Configuracion del Asistente de IA (generado por la calculadora)."
-                    + " NO compartir: contiene la clave de API.");
-            escritor.flush();
-        } finally {
-            if (salida != null) {
-                salida.close();
-            }
-        }
-        this.origen = "archivo " + archivo.getAbsolutePath();
-        return archivo;
     }
 
     /**

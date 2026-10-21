@@ -8,7 +8,7 @@
 
 ## 1. Objetivo
 
-Construir una aplicación de escritorio que derive, integre (indefinida y definidamente) y evalúe funciones de una o dos variables, mostrando **el procedimiento paso a paso** con la regla aplicada en cada término. La aplicación grafica la función, sombrea el área de las integrales definidas y ofrece un **asistente de IA que explica (pero nunca calcula)** el procedimiento.
+Construir una aplicación de escritorio que derive, calcule límites con L'Hôpital, integre (indefinida, definida e impropiamente) funciones de una o dos variables, mostrando **el procedimiento paso a paso** con la regla aplicada. El estudiante elige el método de una **lista de leyes y reglas** y los pasos de ese método se resaltan. La aplicación grafica la función, sombrea el área de las integrales definidas y ofrece un **asistente de IA que explica (pero nunca calcula)** el procedimiento.
 
 ## 2. Decisiones de diseño
 
@@ -26,33 +26,49 @@ Construir una aplicación de escritorio que derive, integre (indefinida y defini
 ```
 calculadora
 ├── Main                         Punto de entrada (Swing en el EDT)
-├── modelo                       Motor matemático
-│   ├── Variable                 Enum X, Y
-│   ├── Termino                  Abstracta: c · x^a · y^b
-│   ├── TerminoPolinomico        Monomios y constantes
-│   ├── TerminoFuncional         Abstracta: c · x^a · y^b · f(k·w)
-│   ├── TerminoSeno / TerminoCoseno / TerminoExponencial / TerminoLogaritmico
-│   ├── Expresion                Suma de términos, simplificación
-│   ├── ResultadoCalculo         Operación, pasos y resultado
-│   └── Calculadora              Fachada del motor
+├── modelo                       Modelo y motor por términos
+│   ├── Variable                 Enum X, Y (y auxiliares U, θ)
+│   ├── Termino, TerminoPolinomico, TerminoFuncional, TerminoSeno, TerminoCoseno,
+│   │   TerminoExponencial, TerminoLogaritmico, Expresion   (motor por términos)
+│   ├── Graficable               Interfaz común para graficar
+│   ├── ResultadoCalculo         Operación, pasos, notas y datos para graficar
+│   ├── PasoDetallado            Paso con regla, expresión, fórmula y resultado
+│   ├── ReglaCalculo             Catálogo de reglas (para resaltar pasos)
+│   ├── MetodoCalculo            Lista de métodos de la interfaz
+│   ├── TecnicaIntegracion       Técnica exigida (sustitución, partes, ...)
+│   ├── EntradaCalculo           Datos escritos por el estudiante
+│   └── Calculadora              Fachada de ambos motores
+├── simbolico                    Motor simbólico (árbol de expresión)
+│   ├── Nodo (+ NodoConstante, NodoVariable, NodoSuma, NodoResta, NodoProducto,
+│   │   NodoCociente, NodoPotencia, NodoNegativo, NodoFuncion), TipoFuncion
+│   ├── AnalizadorSimbolico      Parser de descenso recursivo (y límites ±∞)
+│   ├── Simplificador            Forma canónica: términos semejantes y factores
+│   ├── Polinomio                Desarrollo, división y factorización
+│   ├── Derivador                Todas las reglas de derivación con pasos
+│   ├── Limites                  Límites numéricos (finitos y en ±∞)
+│   ├── Integrador               Tabla, sustitución, partes, verificación
+│   ├── IntegradorRacional       Fracciones parciales
+│   ├── IntegradorTrigonometrico Sustitución trigonométrica
+│   ├── RegistroPasos            Bitácora con deshacer (intentos fallidos)
+│   └── MotorSimbolico           Fachada: derivadas, implícita, L'Hôpital, integrales
 ├── analisis
-│   └── AnalizadorExpresion      Parser de descenso recursivo
+│   └── AnalizadorExpresion      Parser del motor por términos
 ├── excepciones                  CalculadoraException y sus 4 subclases
 ├── util
-│   ├── FormatoNumeros           Enteros, fracciones N/D (D ≤ 100) y decimales
+│   ├── FormatoNumeros           Enteros, fracciones, múltiplos de π, ∞
 │   └── JsonSencillo             Lectura y escritura de JSON
-├── ia                           Asistente
-│   ├── ProveedorIA              Interfaz
-│   ├── ProveedorAnthropic       API de Mensajes de Anthropic
-│   ├── ProveedorCompatibleOpenAI  OpenAI y Ollama local
-│   ├── ConfiguracionIA          config.properties + CALCULADORA_IA_API_KEY
-│   ├── ExplicadorLocal          Respaldo sin red
-│   └── TutorIA                  Orquestador con conmutación automática
+├── ia                           ProveedorIA, ProveedorAnthropic, ProveedorCompatibleOpenAI,
+│                                ConfiguracionIA (se edita en el código), ExplicadorLocal, TutorIA
 ├── vista
-│   ├── VentanaCalculadora       JFrame (un método por panel)
-│   └── PanelGrafico2D           Graficador con Graphics2D
+│   ├── VentanaCalculadora       JFrame de tres columnas (un método por zona)
+│   ├── PanelMetodos             Lista de métodos con fórmula y ejemplo
+│   ├── PanelGrafico2D           Graficador (incluye curvas implícitas)
+│   ├── RenderizadorHtml         Procedimiento con formato
+│   ├── estilo (Tema, Iconos)    Modo oscuro y logotipo
+│   └── componentes              BotonModerno, PanelTarjeta, GrupoSegmentado,
+│                                CampoModerno, Encabezado, BarraDesplazamientoModerna
 └── pruebas
-    └── PruebasCalculadora       99 pruebas sin JUnit
+    └── PruebasCalculadora       171 pruebas sin JUnit
 ```
 
 Los diagramas UML están en `docs/uml/` (PlantUML: `diagrama_clases.puml`, `secuencia_integral_definida.puml`; Mermaid: `diagramas_mermaid.md`).
@@ -151,9 +167,27 @@ funcion    ::= sin | sen | cos | exp | ln
 - Normaliza `·`, `×`, `−`, `÷`, `π` y la coma decimal.
 - Los errores indican la posición del carácter (`ExpresionInvalidaException`).
 
+## 5 bis. Motor simbólico (árbol de expresión)
+
+El motor por términos (sección 4) solo representa sumas de monomios por una función. Para la regla del producto, del cociente, de la cadena general, L'Hôpital y los métodos de integración se construyó un **árbol de expresión** (patrón Composite): cada nodo es un número, una variable, una operación binaria o una función.
+
+**Simplificador (forma canónica).** Los productos se aplanan en *coeficiente × Π base^exponente* (así x·x² = x³, x/x = 1, e^x·e^(2x) = e^(3x)); las sumas se aplanan en términos y se combinan los semejantes. También se extrae el factor común de una suma ((2x + 2)/4 = (x + 1)/2) y se evalúan funciones con valor exacto (arctan(1) = π/4).
+
+**Derivador.** Recursivo, una regla por tipo de nodo: constante, identidad, variable tratada como constante, múltiplo constante, suma/resta, potencia (con cadena), producto, cociente, exponencial (e^u, a^u), logarítmica (ln, log, ln|u|), trigonométricas, inversas, y derivación logarítmica para f^g. Cada aplicación queda como `PasoDetallado` con profundidad (los pasos de los factores aparecen anidados).
+
+**Derivación implícita.** Para F(x, y) = 0 se derivan ambos lados con y = y(x), se agrupan los términos con y' y se despeja: dy/dx = −F_x/F_y.
+
+**Límites y L'Hôpital.** `Limites` evalúa la función en puntos cada vez más cercanos (o en ±10^k) y clasifica: finito, +∞, −∞ o no existe (detecta funciones definidas solo de un lado, como ln x). L'Hôpital se repite mientras la forma sea 0/0 o ∞/∞; la forma 0·∞ se reescribe como cociente.
+
+**Integrador.** Orden automático: constante → suma/resta → múltiplo constante → tabla inmediata (argumento lineal) → identidades trigonométricas → desarrollo de polinomios → **sustitución** (se prueba cada subexpresión u, se divide entre u' y se comprueba que no quede x) → **fracciones parciales** (división, factorización con raíz racional y Durand–Kerner, sistema lineal con Gauss) → distribución → **sustitución trigonométrica** (√(a²−x²), √(a²+x²), √(x²−a²) con potencias ±1/2, −3/2) → **partes** (LIATE, con integrales cíclicas I = A + k·I). Los intentos fallidos se deshacen en la bitácora. **Todo resultado se verifica** derivándolo numéricamente; si no coincide, se rechaza.
+
+**Integrales definidas.** TFC con propiedades (límites iguales, inversión, aditividad). Si hay límites infinitos o puntos donde la función se va a infinito (raíces del denominador o extremos), se trata como **impropia**: se divide el intervalo y cada extremo se evalúa con límites laterales; si alguno no es finito, la integral **diverge**.
+
+**Resaltado del método.** Cada método de la lista declara las reglas que le corresponden (`MetodoCalculo.getReglas()`); los pasos con esas reglas se marcan como destacados y, si ninguna se usó, se agrega una nota.
+
 ## 6. Asistente de IA
 
-- **Configuración:** `config.properties` (copiar desde `config.properties.ejemplo`) o variable de entorno `CALCULADORA_IA_API_KEY`, que tiene prioridad. El archivo real está en `.gitignore`; no hay claves en el código.
+- **Configuración en el código:** constantes `PROVEEDOR`, `CLAVE_API`, `MODELO`, `URL_BASE` y `TIEMPO_ESPERA_SEGUNDOS` de `ConfiguracionIA`. Si la clave está vacía se usa la variable de entorno `CALCULADORA_IA_API_KEY` o, opcionalmente, `config.properties`. Advertencia: una clave escrita en el código no debe subirse a un repositorio público.
 - **Proveedores:** `anthropic` (API de Mensajes, encabezados `x-api-key` y `anthropic-version`), `openai` y `ollama` (Chat Completions, `Authorization: Bearer`).
 - **Instrucción de sistema:** prohíbe calcular, exige texto plano sin Markdown ni LaTeX y máximo 250 palabras.
 - **Mensaje:** contiene el informe de pasos de `ResultadoCalculo` y la pregunta opcional.
@@ -167,34 +201,35 @@ Diseño visual propio, dibujado con `Graphics2D` (sin librerías externas), para
 
 | Clase | Función |
 |---|---|
-| `vista.estilo.Tema` | Paleta de colores (índigo/violeta), tipografías (Segoe UI y Consolas en Windows) y suavizado. |
+| `vista.estilo.Tema` | Paleta en modo oscuro (cian/turquesa), tipografías (Segoe UI y Consolas en Windows) y suavizado. |
 | `vista.estilo.Iconos` | Logotipo e íconos de la ventana generados por código. |
 | `vista.componentes.BotonModerno` | Botones redondeados con estados hover/presionado (primario, secundario, fantasma, chip, tecla). |
 | `vista.componentes.PanelTarjeta` | Tarjetas blancas con esquinas redondeadas y sombra. |
 | `vista.componentes.GrupoSegmentado` | Selector segmentado (operación, variable, navegación). |
-| `vista.componentes.CampoModerno` / `CampoClave` | Campos redondeados con halo de foco y texto de ayuda. |
+| `vista.componentes.CampoModerno` | Campos redondeados con halo de foco y texto de ayuda. |
 | `vista.componentes.Encabezado` | Barra con degradado, logotipo e insignia del estado de la IA. |
 | `vista.componentes.BarraDesplazamientoModerna` | Barras de desplazamiento delgadas. |
 | `vista.RenderizadorHtml` | Convierte los pasos y la explicación en HTML con formato. |
-| `vista.DialogoConfiguracionIA` | Ventana para elegir proveedor, clave, probar conexión y guardar. |
+| `vista.PanelMetodos` | Lista de métodos (Derivadas/Integrales) con fórmula, descripción y ejemplo. |
 
-`VentanaCalculadora` (un método por zona):
+`VentanaCalculadora` (tres columnas, un método por zona):
 
-- `crearEncabezado()`: título, insignia de la IA, botones Configurar IA y Ayuda.
-- `crearTarjetaEntrada()`, `crearTarjetaTeclado()`, `crearTarjetaEjemplos()`: columna izquierda.
-- `crearTarjetaResultado()`: resultado destacado; los errores se muestran aquí en rojo, sin ventanas emergentes.
-- `crearZonaSecciones()`: navegación con `CardLayout` entre **Procedimiento**, **Gráfica 2D** y **Asistente IA**.
+- `crearEncabezado()`: título, insignia de la IA y Ayuda.
+- `PanelMetodos`: lista de métodos; al cambiar de método `actualizarCamposSegunMetodo()` muestra solo los campos necesarios (variable, orden, punto del límite, tipo de integral, a, b, c).
+- `crearTarjetaEntrada()` y `crearTarjetaTeclado()`: datos y teclado. Las teclas no toman el foco y escriben en el último campo con cursor (`campoActivo`), incluidos los límites (∞ y −∞).
+- `crearTarjetaResultado()`: resultado destacado; los errores se muestran ahí en rojo.
+- `crearZonaSecciones()`: **Procedimiento**, **Gráfica 2D** y **Asistente IA** con `CardLayout`.
 
-`PanelGrafico2D`: antialiasing, cuadrícula con paso "1-2-5", marcas numéricas, curva principal (índigo), derivada/antiderivada (rosa discontinua), área en `[a, b]` con `AlphaComposite` (turquesa 35 %), zoom con rueda centrado en el cursor, arrastre y doble clic para restablecer. Corta la curva en puntos no definidos y asíntotas.
+`PanelGrafico2D`: antialiasing, cuadrícula con paso "1-2-5", marcas numéricas, curva principal (índigo), derivada/antiderivada (rosa discontinua), área en `[a, b]` con `AlphaComposite` (turquesa 35 %), zoom con rueda centrado en el cursor, arrastre y doble clic para restablecer. Corta la curva en puntos no definidos y asíntotas. Dibuja curvas implícitas F(x, y) = 0 con *marching squares* y sombrea áreas con límites infinitos hasta el borde visible.
 
 ## 8. Pruebas
 
-`calculadora.pruebas.PruebasCalculadora` (99 casos, sin JUnit), agrupados en: formato de números, términos polinómicos, analizador, derivadas, integrales indefinidas, integrales definidas, manejo de errores, JSON y módulo de IA (incluida la conmutación automática al explicador local cuando el proveedor no responde). Termina con código 1 si alguna falla.
+`calculadora.pruebas.PruebasCalculadora` (171 casos, sin JUnit): formato de números, motor por términos, analizador, JSON, módulo de IA (incluida la conmutación al explicador local), motor simbólico (reglas de derivación, implícita, orden superior, parciales, L'Hôpital, sustitución, partes, fracciones parciales, sustitución trigonométrica, integrales impropias y divergentes) y una prueba que resuelve el ejemplo de **cada método de la lista**. Termina con código 1 si alguna falla.
 
 ```
 .\ejecutar_pruebas.bat
 ...
-Pruebas exitosas: 99
+Pruebas exitosas: 171
 Pruebas fallidas: 0
 RESULTADO: TODAS LAS PRUEBAS PASARON
 ```
@@ -218,8 +253,7 @@ RESULTADO: TODAS LAS PRUEBAS PASARON
 
 ## 11. Limitaciones y trabajo futuro
 
-- Regla del producto, del cociente e integración por partes (`x·sin(x)`, `ln(x)`).
-- Argumentos no lineales (`sin(x^2)`) y regla de la cadena general.
-- Desarrollo de productos de sumas (`(x+1)^2`).
-- Integrales impropias y métodos numéricos (Simpson) como alternativa.
+- Potencias trigonométricas generales (sin³x·cos²x) y fracciones parciales con factores cuadráticos repetidos.
+- Formas indeterminadas ∞ − ∞, 1^∞ y 0^0 en L'Hôpital.
+- Integración numérica (Simpson) para funciones sin antiderivada elemental, como e^(x²).
 - Gráficas 3D de funciones f(x, y).

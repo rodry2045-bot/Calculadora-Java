@@ -18,56 +18,79 @@ import java.awt.Graphics2D;
 public final class Tema {
 
     // ------------------------------------------------------------------
-    // Colores principales
+    // Colores principales (MODO OSCURO con acentos cian / turquesa)
     // ------------------------------------------------------------------
 
-    /** Color de marca (índigo). */
-    public static final Color PRIMARIO = new Color(79, 70, 229);
+    /** Color de marca (cian). */
+    public static final Color PRIMARIO = new Color(34, 211, 238);
     /** Primario al pasar el ratón. */
-    public static final Color PRIMARIO_HOVER = new Color(67, 56, 202);
+    public static final Color PRIMARIO_HOVER = new Color(103, 232, 249);
     /** Primario al presionar. */
-    public static final Color PRIMARIO_PRESIONADO = new Color(55, 48, 163);
+    public static final Color PRIMARIO_PRESIONADO = new Color(6, 182, 212);
     /** Fondo suave del color primario. */
-    public static final Color PRIMARIO_SUAVE = new Color(238, 240, 255);
-    /** Segundo color del degradado del encabezado (violeta). */
-    public static final Color SECUNDARIO = new Color(124, 58, 237);
-    /** Color de acento (verde azulado). */
-    public static final Color ACENTO = new Color(13, 148, 136);
+    public static final Color PRIMARIO_SUAVE = new Color(16, 46, 56);
+    /** Fondo suave más intenso (hover y selección). */
+    public static final Color PRIMARIO_SUAVE_FUERTE = new Color(21, 66, 79);
+    /** Texto sobre botones de color primario. */
+    public static final Color TEXTO_SOBRE_PRIMARIO = new Color(6, 24, 32);
+    /** Segundo color de acento (turquesa). */
+    public static final Color SECUNDARIO = new Color(45, 212, 191);
+    /** Color de acento para notas (violeta suave). */
+    public static final Color ACENTO = new Color(167, 139, 250);
     /** Fondo suave del acento. */
-    public static final Color ACENTO_SUAVE = new Color(220, 245, 241);
+    public static final Color ACENTO_SUAVE = new Color(36, 30, 64);
 
     /** Fondo general de la ventana. */
-    public static final Color FONDO = new Color(243, 245, 250);
+    public static final Color FONDO = new Color(13, 17, 23);
     /** Fondo de tarjetas. */
-    public static final Color SUPERFICIE = Color.WHITE;
-    /** Fondo de elementos secundarios (teclas, campos deshabilitados). */
-    public static final Color SUPERFICIE_ALTERNA = new Color(247, 248, 252);
+    public static final Color SUPERFICIE = new Color(22, 27, 34);
+    /** Fondo de elementos secundarios (teclas, rieles). */
+    public static final Color SUPERFICIE_ALTERNA = new Color(30, 37, 47);
+    /** Fondo de los campos de texto. */
+    public static final Color CAMPO = new Color(11, 15, 20);
     /** Bordes finos. */
-    public static final Color BORDE = new Color(225, 229, 238);
+    public static final Color BORDE = new Color(42, 50, 63);
     /** Borde de un campo con el foco. */
-    public static final Color BORDE_FOCO = new Color(129, 140, 248);
+    public static final Color BORDE_FOCO = new Color(34, 211, 238);
 
     /** Texto principal. */
-    public static final Color TEXTO = new Color(30, 41, 59);
+    public static final Color TEXTO = new Color(230, 237, 243);
     /** Texto secundario. */
-    public static final Color TEXTO_SECUNDARIO = new Color(100, 116, 139);
+    public static final Color TEXTO_SECUNDARIO = new Color(148, 163, 184);
     /** Texto deshabilitado o de ayuda. */
-    public static final Color TEXTO_TENUE = new Color(160, 170, 186);
+    public static final Color TEXTO_TENUE = new Color(92, 104, 120);
 
     /** Éxito. */
-    public static final Color EXITO = new Color(22, 163, 74);
+    public static final Color EXITO = new Color(74, 222, 128);
+    /** Fondo suave de éxito. */
+    public static final Color EXITO_SUAVE = new Color(16, 44, 30);
     /** Advertencia. */
-    public static final Color ADVERTENCIA = new Color(217, 119, 6);
+    public static final Color ADVERTENCIA = new Color(251, 191, 36);
+    /** Fondo suave de advertencia. */
+    public static final Color ADVERTENCIA_SUAVE = new Color(51, 38, 10);
     /** Error. */
-    public static final Color ERROR = new Color(220, 38, 38);
+    public static final Color ERROR = new Color(248, 113, 113);
+    /** Fondo suave de error. */
+    public static final Color ERROR_SUAVE = new Color(55, 20, 24);
+
+    /** Inicio del degradado del encabezado. */
+    public static final Color ENCABEZADO_INICIO = new Color(15, 23, 34);
+    /** Fin del degradado del encabezado. */
+    public static final Color ENCABEZADO_FIN = new Color(8, 51, 61);
 
     // Colores de la gráfica
+    /** Fondo de la gráfica. */
+    public static final Color GRAFICA_FONDO = new Color(11, 15, 20);
+    /** Cuadrícula de la gráfica. */
+    public static final Color GRAFICA_CUADRICULA = new Color(30, 37, 47);
+    /** Ejes de la gráfica. */
+    public static final Color GRAFICA_EJES = new Color(110, 124, 142);
     /** Curva principal f. */
-    public static final Color GRAFICA_FUNCION = new Color(79, 70, 229);
+    public static final Color GRAFICA_FUNCION = new Color(34, 211, 238);
     /** Curva secundaria (derivada o antiderivada). */
-    public static final Color GRAFICA_SECUNDARIA = new Color(236, 72, 153);
+    public static final Color GRAFICA_SECUNDARIA = new Color(244, 114, 182);
     /** Área sombreada de la integral. */
-    public static final Color GRAFICA_AREA = new Color(20, 184, 166);
+    public static final Color GRAFICA_AREA = new Color(45, 212, 191);
 
     /** Radio de las esquinas redondeadas. */
     public static final int RADIO = 14;

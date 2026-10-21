@@ -1,7 +1,9 @@
 package calculadora.ia;
 
+import calculadora.modelo.PasoDetallado;
 import calculadora.modelo.ResultadoCalculo;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -30,7 +32,7 @@ public class ExplicadorLocal {
         cierre.append("Consejo: ").append(consejo(resultado));
         if (pregunta != null && !pregunta.trim().isEmpty()) {
             cierre.append("\n\nSobre tu pregunta: el explicador local no puede responder preguntas abiertas. "
-                    + "Configura un proveedor de IA en config.properties para obtener una respuesta personalizada.");
+                    + "Para una respuesta personalizada, escribe la clave de la IA en ConfiguracionIA.java.");
         }
 
         // 2) Presupuesto de palabras disponible para los pasos
@@ -39,7 +41,7 @@ public class ExplicadorLocal {
 
         // 3) Resumen de cada paso mientras quepa en el presupuesto
         StringBuilder pasosTexto = new StringBuilder();
-        List<String> pasos = resultado.getPasos();
+        List<String> pasos = lineasResumidas(resultado);
         int numero = 1;
         int palabrasUsadas = 0;
         boolean seOmitieronPasos = false;
@@ -70,6 +72,39 @@ public class ExplicadorLocal {
         return TutorIA.limitarPalabras(texto.toString(), TutorIA.MAXIMO_PALABRAS);
     }
 
+    /**
+     * Con pasos detallados (motor simbólico) se usan solo los pasos principales
+     * (profundidad 0 y 1) en el formato "Regla: resultado".
+     */
+    private List<String> lineasResumidas(ResultadoCalculo resultado) {
+        List<PasoDetallado> detallados = resultado.getPasosDetallados();
+        if (detallados.isEmpty()) {
+            return resultado.getPasos();
+        }
+        List<String> lineas = new ArrayList<String>();
+        for (int i = 0; i < detallados.size(); i++) {
+            PasoDetallado paso = detallados.get(i);
+            if (paso.getProfundidad() > 1 || paso.getTitulo().equals("Planteamiento")) {
+                continue;
+            }
+            String linea = paso.getTitulo();
+            String detalle = paso.getDetalle();
+            if (paso.getProfundidad() == 0 && !detalle.isEmpty()) {
+                if (detalle.length() > 150) {
+                    detalle = detalle.substring(0, 147) + "...";
+                }
+                linea = linea + ": " + detalle;
+            }
+            if (!paso.getResultado().isEmpty()) {
+                linea = linea + ". Se obtiene " + paso.getResultado();
+            } else if (paso.getProfundidad() > 0 && !detalle.isEmpty()) {
+                linea = linea + ": " + detalle;
+            }
+            lineas.add(linea + ".");
+        }
+        return lineas;
+    }
+
     private String introduccion(ResultadoCalculo resultado) {
         String variable = "";
         if (resultado.getVariable() != null) {
@@ -88,6 +123,18 @@ public class ExplicadorLocal {
             return "Vamos a calcular la integral definida de f = " + resultado.getExpresion()
                     + ". Representa el área neta bajo la curva entre los límites, y se obtiene con el "
                     + "Teorema Fundamental del Cálculo.";
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.DERIVADA_ORDEN_SUPERIOR) {
+            return "Vamos a derivar f = " + resultado.getExpresion() + " varias veces seguidas: cada derivada "
+                    + "se obtiene derivando la anterior.";
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.DERIVADA_IMPLICITA) {
+            return "Vamos a derivar implícitamente la ecuación " + resultado.getTextoOriginal()
+                    + ": y depende de x, así que al derivar términos con y aparece y'.";
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.LIMITE) {
+            return "Vamos a calcular el límite de f = " + resultado.getExpresion() + ". Si al sustituir aparece "
+                    + "0/0 o ∞/∞ se usa la regla de L'Hôpital.";
         }
         return "Vamos a evaluar f = " + resultado.getExpresion() + " sustituyendo los valores indicados.";
     }
@@ -149,6 +196,12 @@ public class ExplicadorLocal {
         }
         if (tipo == ResultadoCalculo.TipoOperacion.INTEGRAL_DEFINIDA) {
             return "observa el área sombreada en la sección Gráfica 2D; las zonas bajo el eje restan al resultado.";
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.LIMITE) {
+            return "L'Hôpital solo se aplica en formas indeterminadas 0/0 o ∞/∞; deriva numerador y denominador por separado, no como cociente.";
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.DERIVADA_IMPLICITA) {
+            return "cada vez que derives un término con y, multiplica por y' (regla de la cadena).";
         }
         return "revisa los signos al sustituir valores negativos.";
     }

@@ -49,10 +49,10 @@ public class Encabezado extends JPanel {
         textos.setLayout(new BoxLayout(textos, BoxLayout.Y_AXIS));
         JLabel etiquetaTitulo = new JLabel(titulo);
         etiquetaTitulo.setFont(Tema.negrita(21f));
-        etiquetaTitulo.setForeground(Color.WHITE);
+        etiquetaTitulo.setForeground(Tema.TEXTO);
         JLabel etiquetaSubtitulo = new JLabel(subtitulo);
         etiquetaSubtitulo.setFont(Tema.texto(13f));
-        etiquetaSubtitulo.setForeground(new Color(224, 231, 255));
+        etiquetaSubtitulo.setForeground(Tema.TEXTO_SECUNDARIO);
         textos.add(etiquetaTitulo);
         textos.add(Box.createVerticalStrut(2));
         textos.add(etiquetaSubtitulo);
@@ -77,15 +77,20 @@ public class Encabezado extends JPanel {
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
         Tema.suavizar(g2);
-        g2.setPaint(new GradientPaint(0, 0, Tema.PRIMARIO, getWidth(), getHeight(), Tema.SECUNDARIO));
+        g2.setPaint(new GradientPaint(0, 0, Tema.ENCABEZADO_INICIO, getWidth(), getHeight(), Tema.ENCABEZADO_FIN));
         g2.fillRect(0, 0, getWidth(), getHeight());
 
-        // Círculos decorativos translúcidos
-        g2.setColor(new Color(255, 255, 255, 18));
+        // Brillos decorativos cian translúcidos
+        g2.setColor(new Color(34, 211, 238, 16));
         g2.fill(new Ellipse2D.Double(getWidth() - 260, -120, 260, 260));
         g2.fill(new Ellipse2D.Double(getWidth() * 0.55, getHeight() - 30, 180, 180));
-        g2.setColor(new Color(255, 255, 255, 10));
+        g2.setColor(new Color(45, 212, 191, 10));
         g2.fill(new Ellipse2D.Double(getWidth() - 420, 10, 140, 140));
+
+        // Línea inferior de acento
+        g2.setPaint(new GradientPaint(0, 0, new Color(34, 211, 238, 0), getWidth() / 2f, 0,
+                new Color(34, 211, 238, 150)));
+        g2.fillRect(0, getHeight() - 2, getWidth(), 2);
         g2.dispose();
     }
 
@@ -102,7 +107,7 @@ public class Encabezado extends JPanel {
             super("");
             this.colorPunto = Tema.EXITO;
             setFont(Tema.negrita(12.5f));
-            setForeground(Color.WHITE);
+            setForeground(Tema.TEXTO);
             setBorder(BorderFactory.createEmptyBorder(7, 26, 7, 14));
         }
 
@@ -127,8 +132,10 @@ public class Encabezado extends JPanel {
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             Tema.suavizar(g2);
-            g2.setColor(new Color(15, 23, 42, 55));
+            g2.setColor(new Color(255, 255, 255, 14));
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
+            g2.setColor(new Color(255, 255, 255, 30));
+            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, getHeight(), getHeight());
             int diametro = 9;
             int y = (getHeight() - diametro) / 2;
             g2.setColor(new Color(colorPunto.getRed(), colorPunto.getGreen(), colorPunto.getBlue(), 90));

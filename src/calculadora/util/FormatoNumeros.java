@@ -112,6 +112,46 @@ public final class FormatoNumeros {
     }
 
     /**
+     * Como {@link #formatear(double)}, pero además reconoce los infinitos
+     * ("∞", "-∞") y los múltiplos racionales de π ("π/2", "3π/4", "2π").
+     * Se usa para mostrar resultados finales de límites e integrales.
+     *
+     * @param valor número
+     * @return texto exacto si es posible; si no, decimal
+     */
+    public static String formatearExacto(double valor) {
+        if (Double.isInfinite(valor)) {
+            return valor > 0 ? "∞" : "-∞";
+        }
+        if (Double.isNaN(valor)) {
+            return "indefinido";
+        }
+        if (esEntero(valor) || comoFraccion(valor) != null) {
+            return formatear(valor);
+        }
+        double multiploPi = valor / Math.PI;
+        for (int d = 1; d <= 12; d++) {
+            double n = Math.rint(multiploPi * d);
+            if (n != 0 && Math.abs(n / d - multiploPi) < 1e-9) {
+                long numerador = (long) n;
+                String texto;
+                if (numerador == 1) {
+                    texto = "π";
+                } else if (numerador == -1) {
+                    texto = "-π";
+                } else {
+                    texto = numerador + "π";
+                }
+                if (d > 1) {
+                    texto = texto + "/" + d;
+                }
+                return texto;
+            }
+        }
+        return formatearDecimal(valor, 6);
+    }
+
+    /**
      * Formatea un número siempre en notación decimal, sin ceros sobrantes.
      * Se usa el punto como separador decimal, independientemente del idioma
      * del sistema operativo, para que el texto sea consistente.

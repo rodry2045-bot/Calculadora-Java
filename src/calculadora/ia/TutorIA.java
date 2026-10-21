@@ -93,7 +93,7 @@ public class TutorIA {
      */
     public String describirProveedor() {
         if (proveedorRemoto == null) {
-            return "Explicador Local (sin conexión). Para usar IA en línea, configure config.properties.";
+            return "Explicador Local (sin conexión). Para usar IA en línea escriba la clave en ConfiguracionIA.java.";
         }
         return proveedorRemoto.getNombre() + " con respaldo en el Explicador Local";
     }

@@ -82,7 +82,7 @@ public class PanelTarjeta extends JPanel {
 
         // Sombra: varias capas con transparencia creciente
         for (int i = SOMBRA; i >= 1; i--) {
-            g2.setColor(new Color(15, 23, 42, 7));
+            g2.setColor(new Color(0, 0, 0, 22));
             g2.fill(new RoundRectangle2D.Double(0, i, ancho, alto, Tema.RADIO + i, Tema.RADIO + i));
         }
 

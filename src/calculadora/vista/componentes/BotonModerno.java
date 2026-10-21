@@ -62,7 +62,7 @@ public class BotonModerno extends JButton {
 
     private void configurarSegunEstilo() {
         if (estilo == Estilo.PRIMARIO) {
-            setForeground(Color.WHITE);
+            setForeground(Tema.TEXTO_SOBRE_PRIMARIO);
             setFont(Tema.negrita(14f));
             setBorder(BorderFactory.createEmptyBorder(10, 22, 10, 22));
         } else if (estilo == Estilo.CHIP) {
@@ -76,7 +76,7 @@ public class BotonModerno extends JButton {
             setBorder(BorderFactory.createEmptyBorder(8, 4, 8, 4));
             radio = 10;
         } else if (estilo == Estilo.SOBRE_COLOR) {
-            setForeground(Color.WHITE);
+            setForeground(Tema.TEXTO);
             setFont(Tema.negrita(13f));
             setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
             radio = 999;
@@ -135,18 +135,18 @@ public class BotonModerno extends JButton {
                 fondo = Tema.PRIMARIO_PRESIONADO;
             }
             if (!activo) {
-                fondo = new Color(165, 170, 230);
+                fondo = Tema.PRIMARIO_SUAVE_FUERTE;
             }
-            texto = Color.WHITE;
+            texto = activo ? Tema.TEXTO_SOBRE_PRIMARIO : Tema.TEXTO_SECUNDARIO;
         } else if (estilo == Estilo.SECUNDARIO) {
-            fondo = Tema.SUPERFICIE;
+            fondo = Tema.SUPERFICIE_ALTERNA;
             borde = Tema.BORDE;
             if (encima) {
                 fondo = Tema.PRIMARIO_SUAVE;
-                borde = Tema.BORDE_FOCO;
+                borde = Tema.PRIMARIO_PRESIONADO;
             }
             if (presionado) {
-                fondo = new Color(224, 228, 255);
+                fondo = Tema.PRIMARIO_SUAVE_FUERTE;
             }
             texto = activo ? Tema.TEXTO : Tema.TEXTO_TENUE;
         } else if (estilo == Estilo.FANTASMA) {
@@ -154,39 +154,41 @@ public class BotonModerno extends JButton {
                 fondo = Tema.PRIMARIO_SUAVE;
             }
             if (presionado) {
-                fondo = new Color(224, 228, 255);
+                fondo = Tema.PRIMARIO_SUAVE_FUERTE;
             }
             texto = activo ? Tema.PRIMARIO : Tema.TEXTO_TENUE;
         } else if (estilo == Estilo.CHIP) {
             fondo = Tema.PRIMARIO_SUAVE;
+            texto = Tema.PRIMARIO;
             if (encima) {
-                fondo = new Color(224, 228, 255);
-                borde = Tema.BORDE_FOCO;
+                fondo = Tema.PRIMARIO_SUAVE_FUERTE;
+                borde = Tema.PRIMARIO_PRESIONADO;
             }
             if (presionado) {
-                fondo = new Color(210, 215, 255);
+                fondo = new Color(28, 86, 102);
             }
         } else if (estilo == Estilo.TECLA) {
             fondo = Tema.SUPERFICIE_ALTERNA;
             borde = Tema.BORDE;
             if (encima) {
                 fondo = Tema.PRIMARIO_SUAVE;
-                borde = Tema.BORDE_FOCO;
+                borde = Tema.PRIMARIO_PRESIONADO;
             }
             if (presionado) {
-                fondo = new Color(220, 225, 255);
+                fondo = Tema.PRIMARIO_SUAVE_FUERTE;
             }
         } else if (estilo == Estilo.SOBRE_COLOR) {
-            fondo = new Color(255, 255, 255, encima ? 70 : 40);
+            fondo = new Color(255, 255, 255, encima ? 30 : 14);
             if (presionado) {
-                fondo = new Color(255, 255, 255, 95);
+                fondo = new Color(255, 255, 255, 45);
             }
-            borde = new Color(255, 255, 255, 110);
+            borde = new Color(34, 211, 238, encima ? 160 : 90);
+            texto = Tema.TEXTO;
         }
 
         // Sombra sutil para el botón principal
         if (estilo == Estilo.PRIMARIO && activo && !presionado) {
-            g2.setColor(new Color(79, 70, 229, 45));
+            g2.setColor(new Color(34, 211, 238, 50));
             g2.fill(new RoundRectangle2D.Double(1, 3, ancho - 2.0, alto - 2.0, r, r));
             forma = new RoundRectangle2D.Double(0.5, 0.5, ancho - 1.0, alto - 3.0, r, r);
         }

@@ -32,7 +32,7 @@ public final class Iconos {
         Tema.suavizar(g2);
 
         // Fondo con degradado diagonal
-        g2.setPaint(new GradientPaint(0, 0, Tema.PRIMARIO, tamano, tamano, Tema.SECUNDARIO));
+        g2.setPaint(new GradientPaint(0, 0, Tema.PRIMARIO, tamano, tamano, new Color(20, 184, 166)));
         int radio = Math.max(4, tamano / 3);
         g2.fillRoundRect(0, 0, tamano, tamano, radio, radio);
 
@@ -47,7 +47,7 @@ public final class Iconos {
         String simbolo = "∫";
         int x = (tamano - metricas.stringWidth(simbolo)) / 2;
         int y = (tamano - metricas.getHeight()) / 2 + metricas.getAscent();
-        g2.setColor(Color.WHITE);
+        g2.setColor(Tema.TEXTO_SOBRE_PRIMARIO);
         g2.drawString(simbolo, x, y);
         g2.dispose();
         return imagen;

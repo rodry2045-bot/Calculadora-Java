@@ -14,7 +14,7 @@ import java.util.List;
  * conservar los signos (que están incluidos en cada coeficiente).
  * </p>
  */
-public class Expresion {
+public class Expresion implements Graficable {
 
     /** Lista de términos que forman la expresión. */
     private final List<Termino> terminos;

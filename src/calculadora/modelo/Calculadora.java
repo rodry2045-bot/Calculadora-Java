@@ -4,12 +4,18 @@ import calculadora.analisis.AnalizadorExpresion;
 import calculadora.excepciones.CalculadoraException;
 import calculadora.excepciones.DominioInvalidoException;
 import calculadora.excepciones.ExpresionInvalidaException;
+import calculadora.simbolico.MotorSimbolico;
 import calculadora.util.FormatoNumeros;
 
 import java.util.List;
 
 /**
  * FACHADA del motor matemático (patrón de diseño Fachada / Facade).
+ * <p>
+ * Ofrece dos motores: el motor por términos (métodos derivar, integrarIndefinida,
+ * integrarDefinida y evaluar), y el motor simbólico ({@link #resolver}), que
+ * trabaja con árboles de expresión y aplica todos los métodos de la lista.
+ * </p>
  * <p>
  * La interfaz gráfica y las pruebas solo necesitan conocer esta clase:
  * ella se encarga de interpretar el texto, aplicar las reglas de cada
@@ -18,12 +24,29 @@ import java.util.List;
  */
 public class Calculadora {
 
-    /** Analizador que convierte texto en expresiones. */
+    /** Analizador que convierte texto en expresiones (motor por términos). */
     private final AnalizadorExpresion analizador;
+
+    /** Motor simbólico (árbol de expresión) para los métodos avanzados. */
+    private final MotorSimbolico motorSimbolico;
 
     /** Crea la calculadora con su propio analizador. */
     public Calculadora() {
         this.analizador = new AnalizadorExpresion();
+        this.motorSimbolico = new MotorSimbolico();
+    }
+
+    /**
+     * Resuelve un ejercicio con el método elegido en la lista (derivadas,
+     * L'Hôpital, integrales y sus propiedades). Usa el motor simbólico.
+     *
+     * @param metodo  método elegido
+     * @param entrada datos escritos por el estudiante
+     * @return resultado con el procedimiento
+     * @throws CalculadoraException si la expresión no es válida o el método no se puede aplicar
+     */
+    public ResultadoCalculo resolver(MetodoCalculo metodo, EntradaCalculo entrada) throws CalculadoraException {
+        return motorSimbolico.resolver(metodo, entrada);
     }
 
     /**

@@ -1,6 +1,6 @@
 package calculadora.vista;
 
-import calculadora.modelo.Expresion;
+import calculadora.modelo.Graficable;
 import calculadora.modelo.Variable;
 import calculadora.util.FormatoNumeros;
 import calculadora.vista.estilo.Tema;
@@ -49,18 +49,20 @@ public class PanelGrafico2D extends JPanel {
     private static final double ESCALA_MINIMA = 0.5;
     private static final double ESCALA_MAXIMA = 20000.0;
 
-    private static final Color COLOR_FONDO = Color.WHITE;
-    private static final Color COLOR_CUADRICULA = new Color(236, 239, 245);
-    private static final Color COLOR_EJES = new Color(100, 116, 139);
+    private static final Color COLOR_FONDO = Tema.GRAFICA_FONDO;
+    private static final Color COLOR_CUADRICULA = Tema.GRAFICA_CUADRICULA;
+    private static final Color COLOR_EJES = Tema.GRAFICA_EJES;
     private static final Color COLOR_FUNCION = Tema.GRAFICA_FUNCION;
     private static final Color COLOR_SECUNDARIA = Tema.GRAFICA_SECUNDARIA;
     private static final Color COLOR_AREA = Tema.GRAFICA_AREA;
     private static final Color COLOR_TEXTO = Tema.TEXTO_SECUNDARIO;
 
     // Datos que se grafican
-    private transient Expresion funcion;
+    private transient Graficable funcion;
     private String etiquetaFuncion;
-    private transient Expresion curvaSecundaria;
+    private transient Graficable curvaSecundaria;
+    private transient Graficable curvaImplicita;
+    private String etiquetaImplicita;
     private String etiquetaSecundaria;
     private Variable variable;
     private double valorOtraVariable;
@@ -101,7 +103,7 @@ public class PanelGrafico2D extends JPanel {
      * @param variable           variable del eje horizontal
      * @param valorOtraVariable  valor fijo de la otra variable
      */
-    public void graficar(Expresion funcion, String etiquetaFuncion, Expresion curvaSecundaria,
+    public void graficar(Graficable funcion, String etiquetaFuncion, Graficable curvaSecundaria,
                          String etiquetaSecundaria, Variable variable, double valorOtraVariable) {
         this.funcion = funcion;
         this.etiquetaFuncion = etiquetaFuncion;
@@ -109,6 +111,7 @@ public class PanelGrafico2D extends JPanel {
         this.etiquetaSecundaria = etiquetaSecundaria;
         this.variable = variable;
         this.valorOtraVariable = valorOtraVariable;
+        this.curvaImplicita = null;
         this.limiteA = null;
         this.limiteB = null;
         this.puntoX = null;
@@ -121,7 +124,33 @@ public class PanelGrafico2D extends JPanel {
     }
 
     /**
+     * Dibuja la curva de una ecuación implícita F(x, y) = 0 (por ejemplo, la
+     * circunferencia x² + y² = 25) con el método de "marching squares":
+     * se divide la pantalla en celdas y se traza un segmento donde F cambia de signo.
+     *
+     * @param f        función F(x, y)
+     * @param etiqueta texto de la leyenda
+     */
+    public void graficarImplicita(Graficable f, String etiqueta) {
+        this.funcion = null;
+        this.curvaSecundaria = null;
+        this.curvaImplicita = f;
+        this.etiquetaImplicita = etiqueta;
+        this.etiquetaFuncion = etiqueta;
+        this.variable = Variable.X;
+        this.limiteA = null;
+        this.limiteB = null;
+        this.puntoX = null;
+        this.puntoY = null;
+        this.centroX = 0.0;
+        this.centroY = 0.0;
+        this.escala = ESCALA_INICIAL;
+        repaint();
+    }
+
+    /**
      * Activa el sombreado del área entre a y b y centra la vista en el intervalo.
+     * Los límites pueden ser infinitos.
      *
      * @param a límite inferior
      * @param b límite superior
@@ -129,7 +158,7 @@ public class PanelGrafico2D extends JPanel {
     public void sombrearArea(double a, double b) {
         this.limiteA = Double.valueOf(Math.min(a, b));
         this.limiteB = Double.valueOf(Math.max(a, b));
-        centrarEnIntervalo(limiteA.doubleValue(), limiteB.doubleValue());
+        centrarEnIntervaloFinito();
         repaint();
     }
 
@@ -149,6 +178,7 @@ public class PanelGrafico2D extends JPanel {
     public void limpiar() {
         this.funcion = null;
         this.curvaSecundaria = null;
+        this.curvaImplicita = null;
         this.limiteA = null;
         this.limiteB = null;
         this.puntoX = null;
@@ -162,9 +192,24 @@ public class PanelGrafico2D extends JPanel {
         this.centroY = 0.0;
         this.escala = ESCALA_INICIAL;
         if (limiteA != null && limiteB != null) {
-            centrarEnIntervalo(limiteA.doubleValue(), limiteB.doubleValue());
+            centrarEnIntervaloFinito();
         }
         repaint();
+    }
+
+    /** Centra la vista en el intervalo; si un límite es ∞ se muestra un tramo de 10 unidades. */
+    private void centrarEnIntervaloFinito() {
+        double a = limiteA.doubleValue();
+        double b = limiteB.doubleValue();
+        if (Double.isInfinite(a) && Double.isInfinite(b)) {
+            a = -6;
+            b = 6;
+        } else if (Double.isInfinite(a)) {
+            a = b - 10;
+        } else if (Double.isInfinite(b)) {
+            b = a + 10;
+        }
+        centrarEnIntervalo(a, b);
     }
 
     // ==================================================================
@@ -239,6 +284,12 @@ public class PanelGrafico2D extends JPanel {
             dibujarArea(g2);
         }
         dibujarEjes(g2);
+        if (curvaImplicita != null) {
+            dibujarImplicita(g2);
+            dibujarLeyenda(g2);
+            g2.dispose();
+            return;
+        }
         if (curvaSecundaria != null) {
             dibujarCurva(g2, curvaSecundaria, COLOR_SECUNDARIA, new BasicStroke(2.0f,
                     BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1.0f, new float[]{8.0f, 6.0f}, 0.0f));
@@ -357,7 +408,7 @@ public class PanelGrafico2D extends JPanel {
         }
         g2.setFont(Tema.negrita(13f));
         g2.drawString(variable.getSimbolo(), getWidth() - 16, ejeXVisible - 8);
-        g2.drawString("f", ejeYVisible + 8, 16);
+        g2.drawString(curvaImplicita != null ? "y" : "f", ejeYVisible + 8, 16);
     }
 
     /**
@@ -365,7 +416,7 @@ public class PanelGrafico2D extends JPanel {
      * La línea se interrumpe donde la función no está definida (NaN o infinito)
      * o donde hay un salto vertical enorme (asíntotas).
      */
-    private void dibujarCurva(Graphics2D g2, Expresion expresion, Color color, BasicStroke trazo) {
+    private void dibujarCurva(Graphics2D g2, Graficable expresion, Color color, BasicStroke trazo) {
         Path2D.Double camino = new Path2D.Double();
         boolean dibujando = false;
         double yAnteriorPantalla = 0.0;
@@ -403,8 +454,11 @@ public class PanelGrafico2D extends JPanel {
      * transparencia (AlphaComposite).
      */
     private void dibujarArea(Graphics2D g2) {
-        double a = limiteA.doubleValue();
-        double b = limiteB.doubleValue();
+        double aReal = limiteA.doubleValue();
+        double bReal = limiteB.doubleValue();
+        // Un límite infinito se recorta al borde visible de la pantalla
+        double a = Double.isInfinite(aReal) ? Math.min(aMundoX(-5), bReal) : aReal;
+        double b = Double.isInfinite(bReal) ? Math.max(aMundoX(getWidth() + 5), aReal) : bReal;
         int pxInicio = (int) Math.floor(aPantallaX(a));
         int pxFin = (int) Math.ceil(aPantallaX(b));
         double yCero = aPantallaY(0);
@@ -437,7 +491,7 @@ public class PanelGrafico2D extends JPanel {
         g2.setComposite(original);
 
         // Líneas verticales en los límites a y b
-        g2.setColor(COLOR_AREA.darker());
+        g2.setColor(COLOR_AREA);
         g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 1.0f,
                 new float[]{4.0f, 4.0f}, 0.0f));
         int xa = (int) Math.round(aPantallaX(a));
@@ -445,8 +499,74 @@ public class PanelGrafico2D extends JPanel {
         g2.drawLine(xa, 0, xa, getHeight());
         g2.drawLine(xb, 0, xb, getHeight());
         g2.setFont(Tema.negrita(12f));
-        g2.drawString("a = " + FormatoNumeros.formatearDecimal(a, 4), xa + 4, getHeight() - 8);
-        g2.drawString("b = " + FormatoNumeros.formatearDecimal(b, 4), xb + 4, getHeight() - 24);
+        if (!Double.isInfinite(aReal)) {
+            g2.drawString("a = " + FormatoNumeros.formatearExacto(aReal), xa + 4, getHeight() - 8);
+        } else {
+            g2.drawString("a = -∞", 8, getHeight() - 8);
+        }
+        if (!Double.isInfinite(bReal)) {
+            g2.drawString("b = " + FormatoNumeros.formatearExacto(bReal), xb + 4, getHeight() - 24);
+        } else {
+            g2.drawString("b = ∞ →", getWidth() - 70, getHeight() - 24);
+        }
+    }
+
+    /** Marching squares: segmentos donde F(x, y) cambia de signo. */
+    private void dibujarImplicita(Graphics2D g2) {
+        int paso = 4;
+        int columnas = getWidth() / paso + 2;
+        int filas = getHeight() / paso + 2;
+        double[][] valores = new double[columnas][filas];
+        for (int i = 0; i < columnas; i++) {
+            for (int j = 0; j < filas; j++) {
+                double xm = aMundoX(i * paso);
+                double ym = aMundoY(j * paso);
+                valores[i][j] = curvaImplicita.evaluarEn(Variable.X, xm, ym);
+            }
+        }
+        Path2D.Double camino = new Path2D.Double();
+        for (int i = 0; i + 1 < columnas; i++) {
+            for (int j = 0; j + 1 < filas; j++) {
+                double v00 = valores[i][j];
+                double v10 = valores[i + 1][j];
+                double v01 = valores[i][j + 1];
+                double v11 = valores[i + 1][j + 1];
+                if (Double.isNaN(v00) || Double.isNaN(v10) || Double.isNaN(v01) || Double.isNaN(v11)) {
+                    continue;
+                }
+                double[] puntos = new double[8];
+                int n = 0;
+                double x0 = i * paso;
+                double y0 = j * paso;
+                if ((v00 > 0) != (v10 > 0)) {
+                    double t = v00 / (v00 - v10);
+                    puntos[n++] = x0 + t * paso;
+                    puntos[n++] = y0;
+                }
+                if ((v01 > 0) != (v11 > 0)) {
+                    double t = v01 / (v01 - v11);
+                    puntos[n++] = x0 + t * paso;
+                    puntos[n++] = y0 + paso;
+                }
+                if ((v00 > 0) != (v01 > 0)) {
+                    double t = v00 / (v00 - v01);
+                    puntos[n++] = x0;
+                    puntos[n++] = y0 + t * paso;
+                }
+                if ((v10 > 0) != (v11 > 0) && n < 8) {
+                    double t = v10 / (v10 - v11);
+                    puntos[n++] = x0 + paso;
+                    puntos[n++] = y0 + t * paso;
+                }
+                if (n >= 4) {
+                    camino.moveTo(puntos[0], puntos[1]);
+                    camino.lineTo(puntos[2], puntos[3]);
+                }
+            }
+        }
+        g2.setColor(COLOR_FUNCION);
+        g2.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g2.draw(camino);
     }
 
     private void dibujarPunto(Graphics2D g2) {
@@ -455,26 +575,26 @@ public class PanelGrafico2D extends JPanel {
         }
         double px = aPantallaX(puntoX.doubleValue());
         double py = aPantallaY(puntoY.doubleValue());
+        // Punto hueco: indica el valor al que se acerca la función (límite)
+        g2.setColor(COLOR_FONDO);
+        g2.fill(new Ellipse2D.Double(px - 6, py - 6, 12, 12));
         g2.setColor(COLOR_SECUNDARIA);
-        g2.fill(new Ellipse2D.Double(px - 5, py - 5, 10, 10));
+        g2.setStroke(new BasicStroke(2.2f));
+        g2.draw(new Ellipse2D.Double(px - 6, py - 6, 12, 12));
         g2.setFont(Tema.negrita(12f));
-        g2.drawString("(" + FormatoNumeros.formatearDecimal(puntoX.doubleValue(), 4) + ", "
-                + FormatoNumeros.formatearDecimal(puntoY.doubleValue(), 4) + ")", (int) px + 8, (int) py - 8);
+        g2.drawString("(" + FormatoNumeros.formatearExacto(puntoX.doubleValue()) + ", "
+                + FormatoNumeros.formatearExacto(puntoY.doubleValue()) + ")", (int) px + 10, (int) py - 10);
     }
 
     private void dibujarLeyenda(Graphics2D g2) {
         g2.setFont(Tema.texto(12.5f));
         FontMetrics metricas = g2.getFontMetrics();
-        String linea1 = "f = " + etiquetaFuncion;
+        String linea1 = curvaImplicita != null ? etiquetaImplicita : "f = " + etiquetaFuncion;
         String linea2 = null;
         if (curvaSecundaria != null && etiquetaSecundaria != null) {
             linea2 = etiquetaSecundaria;
         }
         String linea3 = null;
-        if (funcion != null && (funcion.dependeDe(variable.otra())
-                || (curvaSecundaria != null && curvaSecundaria.dependeDe(variable.otra())))) {
-            linea3 = "(" + variable.otra().getSimbolo() + " fijo = " + FormatoNumeros.formatear(valorOtraVariable) + ")";
-        }
 
         int ancho = metricas.stringWidth(linea1);
         int lineas = 1;
@@ -489,11 +609,11 @@ public class PanelGrafico2D extends JPanel {
         int alto = lineas * 18 + 8;
 
         Composite original = g2.getComposite();
-        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.88f));
-        g2.setColor(Color.WHITE);
+        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.92f));
+        g2.setColor(Tema.SUPERFICIE);
         g2.fillRoundRect(10, 10, ancho + 44, alto, 10, 10);
         g2.setComposite(original);
-        g2.setColor(COLOR_CUADRICULA.darker());
+        g2.setColor(Tema.BORDE);
         g2.setStroke(new BasicStroke(1.0f));
         g2.drawRoundRect(10, 10, ancho + 44, alto, 10, 10);
 
@@ -520,7 +640,7 @@ public class PanelGrafico2D extends JPanel {
     }
 
     private void dibujarMensajeVacio(Graphics2D g2) {
-        String mensaje = "Calcula algo para ver aquí la gráfica de la función";
+        String mensaje = "Realiza un cálculo para ver aquí la gráfica";
         g2.setFont(Tema.texto(15f));
         FontMetrics metricas = g2.getFontMetrics();
         int x = (getWidth() - metricas.stringWidth(mensaje)) / 2;

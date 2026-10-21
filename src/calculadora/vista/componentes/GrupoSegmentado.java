@@ -178,7 +178,7 @@ public class GrupoSegmentado extends JComponent {
         }
 
         // Fondo del riel
-        g2.setColor(new Color(236, 239, 246));
+        g2.setColor(Tema.CAMPO);
         g2.fill(new RoundRectangle2D.Double(0, 0, anchoTotal, alto, 12, 12));
 
         Font fuente = getFont();
@@ -188,13 +188,13 @@ public class GrupoSegmentado extends JComponent {
         for (int i = 0; i < opciones.length; i++) {
             if (i == seleccionado) {
                 // Pastilla blanca con sombra para la opción activa
-                g2.setColor(new Color(15, 23, 42, 22));
+                g2.setColor(new Color(0, 0, 0, 60));
                 g2.fill(new RoundRectangle2D.Double(x, 5, anchos[i], alto - 8, 9, 9));
-                g2.setColor(Color.WHITE);
+                g2.setColor(Tema.PRIMARIO_SUAVE_FUERTE);
                 g2.fill(new RoundRectangle2D.Double(x, 4, anchos[i], alto - 8, 9, 9));
                 g2.setColor(isEnabled() ? Tema.PRIMARIO : Tema.TEXTO_TENUE);
             } else if (i == encima && isEnabled()) {
-                g2.setColor(new Color(255, 255, 255, 120));
+                g2.setColor(new Color(255, 255, 255, 14));
                 g2.fill(new RoundRectangle2D.Double(x, 4, anchos[i], alto - 8, 9, 9));
                 g2.setColor(Tema.TEXTO);
             } else {

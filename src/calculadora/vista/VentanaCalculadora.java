@@ -7,7 +7,9 @@ import calculadora.excepciones.OperacionNoSoportadaException;
 import calculadora.ia.ConfiguracionIA;
 import calculadora.ia.TutorIA;
 import calculadora.modelo.Calculadora;
-import calculadora.modelo.Expresion;
+import calculadora.modelo.EntradaCalculo;
+import calculadora.modelo.Graficable;
+import calculadora.modelo.MetodoCalculo;
 import calculadora.modelo.ResultadoCalculo;
 import calculadora.modelo.Variable;
 import calculadora.vista.componentes.BarraDesplazamientoModerna;
@@ -34,69 +36,55 @@ import javax.swing.Scrollable;
 import javax.swing.SwingWorker;
 import javax.swing.Timer;
 import javax.swing.WindowConstants;
+import javax.swing.text.JTextComponent;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GraphicsEnvironment;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 import java.awt.GridLayout;
-import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Ventana principal de la calculadora.
- * <p>
- * Distribución:
- * </p>
+ * Ventana principal de la calculadora (modo oscuro).
  * <pre>
- * +-------------------------------- Encabezado (degradado) ---------------------------------+
- * | Columna izquierda              | Tarjeta de resultado                                    |
- * |  - Tarjeta "Función"           |---------------------------------------------------------|
- * |  - Tarjeta "Teclado"           | [Procedimiento] [Gráfica 2D] [Asistente IA]             |
- * |  - Tarjeta "Ejemplos"          | Contenido de la sección elegida                         |
- * +------------------------------------------------------------------------------------------+
+ * +----------------------------------- Encabezado ------------------------------------+
+ * | Lista de métodos  | Datos de entrada      | Tarjeta de resultado                    |
+ * | (Derivadas /      | (campos que cambian   |-----------------------------------------|
+ * |  Integrales)      |  según el método)     | [Procedimiento] [Gráfica 2D] [IA]       |
+ * | Fórmula + ejemplo | Teclado matemático    | Contenido de la sección                 |
+ * +-----------------------------------------------------------------------------------+
  * </pre>
- * Cada zona se construye en su propio método para que el código sea fácil
- * de leer. La IA se consulta en un {@link SwingWorker} para no congelar la ventana.
+ * Cada zona se construye en su propio método. La IA se consulta en un
+ * {@link SwingWorker} para no congelar la ventana.
  */
 public class VentanaCalculadora extends JFrame {
 
     private static final long serialVersionUID = 1L;
 
-    private static final String[] OPERACIONES = {"Derivada", "∫ Indefinida", "∫ Definida", "Evaluar"};
-    private static final int OP_DERIVADA = 0;
-    private static final int OP_INDEFINIDA = 1;
-    private static final int OP_DEFINIDA = 2;
-    private static final int OP_EVALUAR = 3;
-
     private static final String SECCION_PASOS = "pasos";
     private static final String SECCION_GRAFICA = "grafica";
     private static final String SECCION_IA = "ia";
 
-    private static final String[] EJEMPLOS = {
-        "3x^2 - 2x + 1",
-        "x^2*y + 3y",
-        "2sin(3x) + cos(x)",
-        "e^(2x) - 4/x",
-        "y*sin(x)",
-        "x^(1/2) + 1/x^2",
-        "4ln(x) + 5",
-        "x^3 - 3x"
-    };
-
-    /** Teclas: {texto visible, texto a insertar, posición del cursor desde el final}. */
+    /**
+     * Teclas del teclado: {texto visible, texto a insertar, retroceso del cursor}.
+     * El retroceso deja el cursor dentro de los paréntesis: sin(|).
+     */
     private static final String[][] TECLAS = {
-        {"x", "x", "0"}, {"y", "y", "0"}, {"x²", "^2", "0"}, {"xⁿ", "^", "0"}, {"( )", "()", "1"}, {"←", "", "0"},
-        {"sin", "sin()", "1"}, {"cos", "cos()", "1"}, {"e^", "e^()", "1"}, {"ln", "ln()", "1"}, {"√x", "^(1/2)", "0"}, {"1/x", "1/x", "0"},
-        {"+", " + ", "0"}, {"−", " - ", "0"}, {"×", "*", "0"}, {"÷", "/", "0"}, {"π", "pi", "0"}, {"C", "", "0"}
+        {"sin", "sin()", "1"}, {"cos", "cos()", "1"}, {"tan", "tan()", "1"}, {"7", "7", "0"}, {"8", "8", "0"}, {"9", "9", "0"}, {"÷", "/", "0"},
+        {"ln", "ln()", "1"}, {"e^", "e^()", "1"}, {"√", "√()", "1"}, {"4", "4", "0"}, {"5", "5", "0"}, {"6", "6", "0"}, {"×", "*", "0"},
+        {"x²", "^2", "0"}, {"xⁿ", "^", "0"}, {"π", "pi", "0"}, {"1", "1", "0"}, {"2", "2", "0"}, {"3", "3", "0"}, {"−", "-", "0"},
+        {"x", "x", "0"}, {"y", "y", "0"}, {"( )", "()", "1"}, {"0", "0", "0"}, {".", ".", "0"}, {"=", " = ", "0"}, {"+", "+", "0"},
+        {"asin", "arcsin()", "1"}, {"atan", "arctan()", "1"}, {"1/x", "1/x", "0"}, {"∞", "∞", "0"}, {"−∞", "-∞", "0"},
+        {"←", "", "0"}, {"C", "", "0"}
     };
 
     // Motor y tutor
@@ -104,17 +92,27 @@ public class VentanaCalculadora extends JFrame {
     private transient TutorIA tutor;
     private transient ResultadoCalculo ultimoResultado;
 
+    // Métodos
+    private PanelMetodos panelMetodos;
+
     // Entrada
+    private JLabel etiquetaFuncion;
     private CampoModerno campoExpresion;
-    private GrupoSegmentado selectorOperacion;
+    private JComponent filaVariable;
     private GrupoSegmentado selectorVariable;
-    private JLabel etiquetaA;
-    private JLabel etiquetaB;
-    private JLabel etiquetaOtra;
+    private JComponent filaOrden;
+    private CampoModerno campoOrden;
+    private JComponent filaPunto;
+    private CampoModerno campoPunto;
+    private JComponent filaTipoIntegral;
+    private GrupoSegmentado selectorTipoIntegral;
+    private JComponent filaLimites;
     private CampoModerno campoA;
     private CampoModerno campoB;
-    private CampoModerno campoOtra;
+    private JComponent filaC;
+    private CampoModerno campoC;
     private BotonModerno botonCalcular;
+    private JTextComponent campoActivo;
 
     // Resultado
     private PanelTarjeta tarjetaResultado;
@@ -151,32 +149,53 @@ public class VentanaCalculadora extends JFrame {
         raiz.setBackground(Tema.FONDO);
         raiz.add(crearEncabezado(), BorderLayout.NORTH);
 
-        JPanel cuerpo = new JPanel(new BorderLayout(18, 0));
+        JPanel cuerpo = new JPanel(new BorderLayout(16, 0));
         cuerpo.setOpaque(false);
-        cuerpo.setBorder(BorderFactory.createEmptyBorder(18, 18, 6, 18));
-        cuerpo.add(crearColumnaIzquierda(), BorderLayout.WEST);
-        cuerpo.add(crearColumnaDerecha(), BorderLayout.CENTER);
+        cuerpo.setBorder(BorderFactory.createEmptyBorder(16, 16, 4, 16));
+        panelMetodos = new PanelMetodos();
+        cuerpo.add(panelMetodos, BorderLayout.WEST);
+
+        JPanel derecha = new JPanel(new BorderLayout(16, 0));
+        derecha.setOpaque(false);
+        derecha.add(crearColumnaEntrada(), BorderLayout.WEST);
+        derecha.add(crearColumnaResultados(), BorderLayout.CENTER);
+        cuerpo.add(derecha, BorderLayout.CENTER);
+
         raiz.add(cuerpo, BorderLayout.CENTER);
         raiz.add(crearBarraEstado(), BorderLayout.SOUTH);
         setContentPane(raiz);
 
-        actualizarCamposSegunOperacion();
+        panelMetodos.alCambiarMetodo(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                actualizarCamposSegunMetodo();
+            }
+        });
+        panelMetodos.alCargarEjemplo(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cargarEjemplo();
+            }
+        });
+
+        actualizarCamposSegunMetodo();
         actualizarInsigniaIA();
         mostrarEstadoInicial();
+        campoActivo = campoExpresion;
 
-        setMinimumSize(new Dimension(1120, 720));
+        setMinimumSize(new Dimension(1180, 720));
         ajustarTamanoInicial();
         getRootPane().setDefaultButton(botonCalcular);
     }
 
-    /** Abre la ventana con un tamaño cómodo que quepa en la pantalla. */
+    /** Abre la ventana con un tamaño cómodo (maximizada en pantallas pequeñas). */
     private void ajustarTamanoInicial() {
         Rectangle pantalla = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        int ancho = Math.min(1360, pantalla.width);
-        int alto = Math.min(900, pantalla.height);
+        int ancho = Math.min(1500, pantalla.width);
+        int alto = Math.min(920, pantalla.height);
         setSize(ancho, alto);
         setLocationRelativeTo(null);
-        if (pantalla.width < 1360 || pantalla.height < 860) {
+        if (pantalla.width < 1500 || pantalla.height < 900) {
             setExtendedState(JFrame.MAXIMIZED_BOTH);
         }
     }
@@ -187,20 +206,11 @@ public class VentanaCalculadora extends JFrame {
 
     private JComponent crearEncabezado() {
         Encabezado encabezado = new Encabezado("Calculadora de Cálculo",
-                "Derivadas, integrales y gráficas paso a paso  ·  Programación II");
+                "Derivadas, límites e integrales paso a paso  ·  Programación II");
         insigniaIA = new Encabezado.Insignia();
         encabezado.agregarDerecha(insigniaIA);
-
-        BotonModerno botonConfigurar = new BotonModerno("Configurar IA", BotonModerno.Estilo.SOBRE_COLOR);
-        botonConfigurar.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                abrirConfiguracionIA();
-            }
-        });
-        encabezado.agregarDerecha(botonConfigurar);
-
         BotonModerno botonAyuda = new BotonModerno("Ayuda", BotonModerno.Estilo.SOBRE_COLOR);
+        botonAyuda.setFocusable(false);
         botonAyuda.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -212,133 +222,92 @@ public class VentanaCalculadora extends JFrame {
     }
 
     // ==================================================================
-    // COLUMNA IZQUIERDA: entrada, teclado y ejemplos
+    // COLUMNA DE ENTRADA: datos y teclado
     // ==================================================================
 
-    private JComponent crearColumnaIzquierda() {
+    private JComponent crearColumnaEntrada() {
         JPanel columna = new PanelQueSigueAncho();
         columna.setOpaque(false);
         columna.setLayout(new BoxLayout(columna, BoxLayout.Y_AXIS));
         columna.add(crearTarjetaEntrada());
         columna.add(Box.createVerticalStrut(12));
         columna.add(crearTarjetaTeclado());
-        columna.add(Box.createVerticalStrut(12));
-        columna.add(crearTarjetaEjemplos());
         columna.add(Box.createVerticalGlue());
 
         JScrollPane desplazamiento = new JScrollPane(columna,
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         BarraDesplazamientoModerna.aplicar(desplazamiento);
-        desplazamiento.setPreferredSize(new Dimension(430, 400));
+        desplazamiento.setPreferredSize(new Dimension(410, 400));
         return desplazamiento;
     }
 
     /**
-     * Tarjeta con la función, la operación, la variable y los límites.
+     * Tarjeta con los datos. Las filas se muestran u ocultan según el método:
+     * variable (derivadas), orden n, punto del límite, tipo de integral,
+     * límites a y b, y punto intermedio c.
      */
     private JComponent crearTarjetaEntrada() {
-        JPanel contenido = new JPanel(new GridBagLayout());
+        JPanel contenido = new JPanel();
         contenido.setOpaque(false);
-        GridBagConstraints c = new GridBagConstraints();
-        c.gridx = 0;
-        c.gridwidth = 3;
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.weightx = 1.0;
-        c.anchor = GridBagConstraints.WEST;
+        contenido.setLayout(new BoxLayout(contenido, BoxLayout.Y_AXIS));
 
-        // Función
-        c.gridy = 0;
-        c.insets = new Insets(0, 0, 6, 0);
-        contenido.add(PanelTarjeta.crearTitulo("Función  f(x, y)"), c);
-
-        campoExpresion = new CampoModerno("3x^2 - 2x + 1", 20);
-        campoExpresion.setFont(Tema.mono(21f));
+        etiquetaFuncion = PanelTarjeta.crearTitulo("Función f(x)");
+        contenido.add(alinear(etiquetaFuncion));
+        contenido.add(Box.createVerticalStrut(6));
+        campoExpresion = new CampoModerno("x^2·sin(x)", 20);
+        campoExpresion.setFont(Tema.mono(20f));
         campoExpresion.setRelleno(11, 14);
-        campoExpresion.setTextoAyuda("Ej.: 3x^2 + 2sin(x)");
-        campoExpresion.setToolTipText("Ejemplos: 3x^2 - 2x + 1, x^2*y, 2sin(3x), e^(2x), 1/x, 4ln(x)");
-        c.gridy = 1;
-        c.insets = new Insets(0, 0, 16, 0);
-        contenido.add(campoExpresion, c);
+        campoExpresion.setTextoAyuda("Ej.: x^2·sin(x)");
+        registrarCampo(campoExpresion);
+        contenido.add(alinear(campoExpresion));
+        contenido.add(Box.createVerticalStrut(14));
 
-        // Operación
-        c.gridy = 2;
-        c.insets = new Insets(0, 0, 6, 0);
-        contenido.add(PanelTarjeta.crearTitulo("Operación"), c);
-        selectorOperacion = new GrupoSegmentado(OPERACIONES);
-        selectorOperacion.setFont(Tema.negrita(12.5f));
-        selectorOperacion.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                actualizarCamposSegunOperacion();
-            }
-        });
-        c.gridy = 3;
-        c.insets = new Insets(0, 0, 16, 0);
-        contenido.add(selectorOperacion, c);
-
-        // Variable y valor fijo de la otra variable
-        c.gridwidth = 1;
-        c.gridy = 4;
-        c.gridx = 0;
-        c.weightx = 0.0;
-        c.insets = new Insets(0, 0, 6, 14);
-        contenido.add(PanelTarjeta.crearTitulo("Variable"), c);
-        etiquetaOtra = PanelTarjeta.crearTitulo("Valor fijo de y");
-        c.gridx = 1;
-        c.gridwidth = 2;
-        c.weightx = 1.0;
-        c.insets = new Insets(0, 0, 6, 0);
-        contenido.add(etiquetaOtra, c);
-
+        // Variable
         selectorVariable = new GrupoSegmentado("x", "y");
         selectorVariable.setFont(Tema.mono(15f));
-        selectorVariable.setPreferredSize(new Dimension(110, 40));
-        selectorVariable.addActionListener(new ActionListener() {
+        selectorVariable.setOcuparAncho(false);
+        filaVariable = fila("Derivar respecto a", selectorVariable,
+                "La otra variable se trata como constante (derivada parcial)");
+        contenido.add(filaVariable);
+
+        // Orden
+        campoOrden = crearCampoNumero("2");
+        filaOrden = fila("Orden de la derivada (n)", campoOrden, "Número entero de 1 a 6");
+        contenido.add(filaOrden);
+
+        // Punto del límite
+        campoPunto = crearCampoNumero("0");
+        filaPunto = fila("x tiende a", campoPunto, "Un número, pi, ∞ o -∞ (use el teclado)");
+        contenido.add(filaPunto);
+
+        // Tipo de integral
+        selectorTipoIntegral = new GrupoSegmentado("Indefinida", "Definida [a, b]");
+        selectorTipoIntegral.setFont(Tema.negrita(13f));
+        selectorTipoIntegral.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                actualizarCamposSegunOperacion();
+                actualizarCamposSegunMetodo();
             }
         });
-        c.gridy = 5;
-        c.gridx = 0;
-        c.gridwidth = 1;
-        c.weightx = 0.0;
-        c.fill = GridBagConstraints.NONE;
-        c.insets = new Insets(0, 0, 14, 14);
-        contenido.add(selectorVariable, c);
+        filaTipoIntegral = fila("Tipo de integral", selectorTipoIntegral, null);
+        contenido.add(filaTipoIntegral);
 
-        campoOtra = crearCampoNumero("1", "Valor numérico de la otra variable (se usa al evaluar y graficar)");
-        c.gridx = 1;
-        c.gridwidth = 2;
-        c.weightx = 1.0;
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.insets = new Insets(0, 0, 14, 0);
-        contenido.add(campoOtra, c);
+        // Límites a y b
+        JPanel limites = new JPanel(new GridLayout(2, 2, 10, 6));
+        limites.setOpaque(false);
+        limites.add(PanelTarjeta.crearTitulo("Límite inferior a"));
+        limites.add(PanelTarjeta.crearTitulo("Límite superior b"));
+        campoA = crearCampoNumero("0");
+        campoB = crearCampoNumero("1");
+        limites.add(campoA);
+        limites.add(campoB);
+        filaLimites = envolverFila(limites, "Admiten números, fracciones, pi, ∞ y -∞");
+        contenido.add(filaLimites);
 
-        // Límites
-        etiquetaA = PanelTarjeta.crearTitulo("Límite inferior (a)");
-        etiquetaB = PanelTarjeta.crearTitulo("Límite superior (b)");
-        c.gridy = 6;
-        c.gridx = 0;
-        c.gridwidth = 2;
-        c.insets = new Insets(0, 0, 6, 10);
-        contenido.add(etiquetaA, c);
-        c.gridx = 2;
-        c.gridwidth = 1;
-        c.insets = new Insets(0, 0, 6, 0);
-        contenido.add(etiquetaB, c);
-
-        campoA = crearCampoNumero("0", "Admite números, fracciones y pi: 0, 1/2, pi/2");
-        campoB = crearCampoNumero("1", "Admite números, fracciones y pi: 1, 3/2, pi");
-        c.gridy = 7;
-        c.gridx = 0;
-        c.gridwidth = 2;
-        c.insets = new Insets(0, 0, 18, 10);
-        contenido.add(campoA, c);
-        c.gridx = 2;
-        c.gridwidth = 1;
-        c.insets = new Insets(0, 0, 18, 0);
-        contenido.add(campoB, c);
+        // Punto intermedio c
+        campoC = crearCampoNumero("1");
+        filaC = fila("Punto intermedio c", campoC, "a < c < b");
+        contenido.add(filaC);
 
         // Botones
         JPanel botones = new JPanel(new BorderLayout(10, 0));
@@ -360,40 +329,115 @@ public class VentanaCalculadora extends JFrame {
         });
         botones.add(botonCalcular, BorderLayout.CENTER);
         botones.add(botonLimpiar, BorderLayout.EAST);
-        c.gridy = 8;
-        c.gridx = 0;
-        c.gridwidth = 3;
-        c.insets = new Insets(0, 0, 0, 0);
-        contenido.add(botones, c);
+        contenido.add(Box.createVerticalStrut(4));
+        contenido.add(alinear(botones));
 
         PanelTarjeta tarjeta = new PanelTarjeta(new BorderLayout());
         tarjeta.add(contenido, BorderLayout.CENTER);
         return limitarAltura(tarjeta);
     }
 
-    private CampoModerno crearCampoNumero(String valor, String ayuda) {
+    /** Fila con título, componente y ayuda opcional. */
+    private JComponent fila(String titulo, JComponent componente, String ayuda) {
+        JPanel panel = new JPanel(new BorderLayout(0, 6));
+        panel.setOpaque(false);
+        panel.add(PanelTarjeta.crearTitulo(titulo), BorderLayout.NORTH);
+        JPanel envoltura = new JPanel(new BorderLayout());
+        envoltura.setOpaque(false);
+        if (componente instanceof GrupoSegmentado && !(componente == selectorTipoIntegral)) {
+            envoltura.add(componente, BorderLayout.WEST);
+        } else {
+            envoltura.add(componente, BorderLayout.CENTER);
+        }
+        panel.add(envoltura, BorderLayout.CENTER);
+        return envolverFila(panel, ayuda);
+    }
+
+    private JComponent envolverFila(JComponent panel, String ayuda) {
+        JPanel fila = new JPanel(new BorderLayout(0, 4)) {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Dimension getMaximumSize() {
+                return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+            }
+        };
+        fila.setOpaque(false);
+        fila.setAlignmentX(0.0f);
+        fila.add(panel, BorderLayout.CENTER);
+        if (ayuda != null) {
+            JLabel etiqueta = new JLabel(ayuda);
+            etiqueta.setFont(Tema.texto(11.5f));
+            etiqueta.setForeground(Tema.TEXTO_TENUE);
+            fila.add(etiqueta, BorderLayout.SOUTH);
+        }
+        fila.setBorder(BorderFactory.createEmptyBorder(0, 0, 14, 0));
+        return fila;
+    }
+
+    private JComponent alinear(JComponent componente) {
+        componente.setAlignmentX(0.0f);
+        if (componente instanceof JPanel || componente instanceof CampoModerno) {
+            final JComponent c = componente;
+            JPanel envoltura = new JPanel(new BorderLayout()) {
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                public Dimension getMaximumSize() {
+                    return new Dimension(Integer.MAX_VALUE, c.getPreferredSize().height);
+                }
+            };
+            envoltura.setOpaque(false);
+            envoltura.setAlignmentX(0.0f);
+            envoltura.add(componente, BorderLayout.CENTER);
+            return envoltura;
+        }
+        return componente;
+    }
+
+    private CampoModerno crearCampoNumero(String valor) {
         CampoModerno campo = new CampoModerno(valor, 6);
         campo.setFont(Tema.mono(15f));
-        campo.setToolTipText(ayuda);
+        registrarCampo(campo);
         return campo;
     }
 
+    /** Recuerda el último campo con el cursor, para que el teclado escriba en él. */
+    private void registrarCampo(final JTextComponent campo) {
+        campo.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                campoActivo = campo;
+            }
+        });
+    }
+
     /**
-     * Teclado con símbolos matemáticos que se insertan en la función.
+     * Teclado matemático: números, operaciones, funciones e infinito.
+     * Las teclas NO toman el foco, así el cursor se queda en el campo activo.
      */
     private JComponent crearTarjetaTeclado() {
-        JPanel rejilla = new JPanel(new GridLayout(3, 6, 7, 7));
+        JPanel rejilla = new JPanel(new GridLayout(5, 7, 6, 6));
         rejilla.setOpaque(false);
         for (int i = 0; i < TECLAS.length; i++) {
             final String visible = TECLAS[i][0];
             final String insertar = TECLAS[i][1];
             final int retroceso = Integer.parseInt(TECLAS[i][2]);
             BotonModerno tecla = new BotonModerno(visible, BotonModerno.Estilo.TECLA);
-            if (visible.equals("sin") || visible.equals("cos") || visible.equals("ln")) {
-                tecla.setFont(Tema.mono(14f));
+            tecla.setFocusable(false);
+            if (visible.length() > 2) {
+                tecla.setFont(Tema.mono(visible.length() > 4 ? 11.5f : 13.5f));
+            }
+            if (Character.isDigit(visible.charAt(0)) || visible.equals(".")) {
+                tecla.setFont(Tema.negrita(15f));
             }
             if (visible.equals("C") || visible.equals("←")) {
                 tecla.setForeground(Tema.ERROR);
+            } else if (visible.contains("∞")) {
+                tecla.setForeground(Tema.SECUNDARIO);
+                tecla.setFont(Tema.negrita(15f));
+            } else if (!Character.isDigit(visible.charAt(0)) && !visible.equals(".")) {
+                tecla.setForeground(Tema.PRIMARIO);
             }
             tecla.addActionListener(new ActionListener() {
                 @Override
@@ -403,31 +447,14 @@ public class VentanaCalculadora extends JFrame {
             });
             rejilla.add(tecla);
         }
-        return limitarAltura(PanelTarjeta.conTitulo("Teclado matemático", rejilla));
-    }
-
-    /**
-     * Chips con funciones de ejemplo.
-     */
-    private JComponent crearTarjetaEjemplos() {
-        JPanel rejilla = new JPanel(new GridLayout(0, 2, 8, 8));
-        rejilla.setOpaque(false);
-        for (int i = 0; i < EJEMPLOS.length; i++) {
-            final String ejemplo = EJEMPLOS[i];
-            BotonModerno chip = new BotonModerno(ejemplo, BotonModerno.Estilo.CHIP);
-            chip.setFont(Tema.mono(12.5f));
-            chip.setToolTipText("Usar " + ejemplo);
-            chip.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    campoExpresion.setText(ejemplo);
-                    campoExpresion.requestFocusInWindow();
-                    calcular();
-                }
-            });
-            rejilla.add(chip);
-        }
-        return limitarAltura(PanelTarjeta.conTitulo("Ejemplos rápidos", rejilla));
+        JLabel ayuda = new JLabel("Escribe en el campo que tenga el cursor (función o límites)");
+        ayuda.setFont(Tema.texto(11.5f));
+        ayuda.setForeground(Tema.TEXTO_TENUE);
+        JPanel contenido = new JPanel(new BorderLayout(0, 8));
+        contenido.setOpaque(false);
+        contenido.add(rejilla, BorderLayout.CENTER);
+        contenido.add(ayuda, BorderLayout.SOUTH);
+        return limitarAltura(PanelTarjeta.conTitulo("Teclado matemático", contenido));
     }
 
     /** Evita que BoxLayout estire verticalmente las tarjetas. */
@@ -438,39 +465,36 @@ public class VentanaCalculadora extends JFrame {
 
             @Override
             public Dimension getMaximumSize() {
-                Dimension preferido = getPreferredSize();
-                return new Dimension(Integer.MAX_VALUE, preferido.height);
+                return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
             }
         };
         envoltura.setOpaque(false);
+        envoltura.setAlignmentX(0.0f);
         envoltura.add(componente, BorderLayout.CENTER);
         return envoltura;
     }
 
     // ==================================================================
-    // COLUMNA DERECHA: resultado y secciones
+    // COLUMNA DE RESULTADOS
     // ==================================================================
 
-    private JComponent crearColumnaDerecha() {
-        JPanel columna = new JPanel(new BorderLayout(0, 14));
+    private JComponent crearColumnaResultados() {
+        JPanel columna = new JPanel(new BorderLayout(0, 12));
         columna.setOpaque(false);
         columna.add(crearTarjetaResultado(), BorderLayout.NORTH);
         columna.add(crearZonaSecciones(), BorderLayout.CENTER);
         return columna;
     }
 
-    /**
-     * Tarjeta destacada con el resultado final.
-     */
     private JComponent crearTarjetaResultado() {
         tarjetaResultado = new PanelTarjeta(new BorderLayout(0, 6));
-
         JPanel superior = new JPanel(new BorderLayout());
         superior.setOpaque(false);
         etiquetaTipoResultado = PanelTarjeta.crearTitulo("Resultado");
         superior.add(etiquetaTipoResultado, BorderLayout.WEST);
         botonCopiar = new BotonModerno("Copiar", BotonModerno.Estilo.FANTASMA);
         botonCopiar.setFont(Tema.negrita(12f));
+        botonCopiar.setFocusable(false);
         botonCopiar.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
         botonCopiar.addActionListener(new ActionListener() {
             @Override
@@ -487,19 +511,15 @@ public class VentanaCalculadora extends JFrame {
         textoResultado.setWrapStyleWord(true);
         textoResultado.setOpaque(false);
         textoResultado.setBorder(null);
-        textoResultado.setFont(Tema.mono(23f));
+        textoResultado.setFont(Tema.mono(21f));
         textoResultado.setForeground(Tema.TEXTO);
-        textoResultado.setRows(1);
+        textoResultado.setSelectionColor(new Color(21, 94, 117));
         tarjetaResultado.add(textoResultado, BorderLayout.CENTER);
         return tarjetaResultado;
     }
 
-    /**
-     * Navegación entre Procedimiento, Gráfica y Asistente IA.
-     */
     private JComponent crearZonaSecciones() {
         PanelTarjeta tarjeta = new PanelTarjeta(new BorderLayout(0, 12));
-
         navegacion = new GrupoSegmentado("Procedimiento", "Gráfica 2D", "Asistente IA");
         navegacion.setOcuparAncho(false);
         navegacion.setFont(Tema.negrita(13.5f));
@@ -534,10 +554,9 @@ public class VentanaCalculadora extends JFrame {
     private JComponent crearSeccionGrafica() {
         JPanel seccion = new JPanel(new BorderLayout(0, 8));
         seccion.setOpaque(false);
-
         panelGrafico = new PanelGrafico2D();
         JPanel marco = new JPanel(new BorderLayout());
-        marco.setBackground(Color.WHITE);
+        marco.setBackground(Tema.GRAFICA_FONDO);
         marco.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
         marco.add(panelGrafico, BorderLayout.CENTER);
         seccion.add(marco, BorderLayout.CENTER);
@@ -549,6 +568,7 @@ public class VentanaCalculadora extends JFrame {
         ayuda.setForeground(Tema.TEXTO_SECUNDARIO);
         barra.add(ayuda, BorderLayout.WEST);
         BotonModerno botonRestablecer = new BotonModerno("Restablecer vista", BotonModerno.Estilo.FANTASMA);
+        botonRestablecer.setFocusable(false);
         botonRestablecer.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -563,22 +583,10 @@ public class VentanaCalculadora extends JFrame {
     private JComponent crearSeccionAsistente() {
         JPanel seccion = new JPanel(new BorderLayout(0, 10));
         seccion.setOpaque(false);
-
-        JPanel superior = new JPanel(new BorderLayout());
-        superior.setOpaque(false);
         etiquetaProveedor = new JLabel();
         etiquetaProveedor.setFont(Tema.texto(13f));
         etiquetaProveedor.setForeground(Tema.TEXTO_SECUNDARIO);
-        superior.add(etiquetaProveedor, BorderLayout.WEST);
-        BotonModerno botonConfigurar = new BotonModerno("Configurar IA", BotonModerno.Estilo.FANTASMA);
-        botonConfigurar.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                abrirConfiguracionIA();
-            }
-        });
-        superior.add(botonConfigurar, BorderLayout.EAST);
-        seccion.add(superior, BorderLayout.NORTH);
+        seccion.add(etiquetaProveedor, BorderLayout.NORTH);
 
         vistaExplicacion = crearVisorHtml();
         JScrollPane desplazamiento = new JScrollPane(vistaExplicacion);
@@ -617,6 +625,7 @@ public class VentanaCalculadora extends JFrame {
         visor.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
         visor.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
         visor.setFont(Tema.texto(14f));
+        visor.setForeground(Tema.TEXTO);
         return visor;
     }
 
@@ -624,7 +633,7 @@ public class VentanaCalculadora extends JFrame {
         barraEstado = new JLabel("Listo.");
         barraEstado.setFont(Tema.texto(12.5f));
         barraEstado.setForeground(Tema.TEXTO_SECUNDARIO);
-        barraEstado.setBorder(BorderFactory.createEmptyBorder(4, 22, 10, 22));
+        barraEstado.setBorder(BorderFactory.createEmptyBorder(4, 20, 8, 20));
         return barraEstado;
     }
 
@@ -642,88 +651,103 @@ public class VentanaCalculadora extends JFrame {
         }
     }
 
-    /** Habilita o deshabilita los campos según la operación elegida. */
-    private void actualizarCamposSegunOperacion() {
-        int operacion = selectorOperacion.getSeleccionado();
-        Variable variable = variableSeleccionada();
-        boolean esDefinida = operacion == OP_DEFINIDA;
-        boolean esEvaluar = operacion == OP_EVALUAR;
+    /** Muestra solo los campos que necesita el método elegido. */
+    private void actualizarCamposSegunMetodo() {
+        MetodoCalculo metodo = panelMetodos.getSeleccionado();
+        boolean definida = metodo.esDefinidaObligatoria()
+                || (metodo.usaTipoIntegral() && selectorTipoIntegral.getSeleccionado() == 1);
 
-        if (esEvaluar) {
-            etiquetaA.setText("VALOR DE " + variable.getSimbolo().toUpperCase());
+        if (metodo.getOperacion() == MetodoCalculo.Operacion.IMPLICITA) {
+            etiquetaFuncion.setText("ECUACIÓN EN x E y (USE =)");
+        } else if (metodo.getOperacion() == MetodoCalculo.Operacion.LIMITE) {
+            etiquetaFuncion.setText("FUNCIÓN f(x) DEL LÍMITE");
+        } else if (metodo.getCategoria() == MetodoCalculo.Categoria.INTEGRALES) {
+            etiquetaFuncion.setText("INTEGRANDO f(x)");
         } else {
-            etiquetaA.setText("LÍMITE INFERIOR (a)");
+            etiquetaFuncion.setText("FUNCIÓN f(x, y)");
         }
-        etiquetaOtra.setText("VALOR FIJO DE " + variable.otra().getSimbolo().toUpperCase());
-
-        campoA.setEnabled(esDefinida || esEvaluar);
-        etiquetaA.setEnabled(esDefinida || esEvaluar);
-        campoB.setEnabled(esDefinida);
-        etiquetaB.setEnabled(esDefinida);
+        filaVariable.setVisible(metodo.usaVariable());
+        filaOrden.setVisible(metodo.usaOrden());
+        filaPunto.setVisible(metodo.usaPunto());
+        filaTipoIntegral.setVisible(metodo.usaTipoIntegral());
+        filaLimites.setVisible(definida);
+        filaC.setVisible(metodo.usaPuntoIntermedio());
+        revalidate();
         repaint();
+        mostrarEstado("Método: " + metodo.getNombre() + ". Escribe la función o pulsa \"Cargar ejemplo\".",
+                Tema.TEXTO_SECUNDARIO);
     }
 
-    private Variable variableSeleccionada() {
-        if (selectorVariable.getSeleccionado() == 1) {
-            return Variable.Y;
-        }
-        return Variable.X;
-    }
-
-    /** Inserta en la función el texto de la tecla pulsada. */
-    private void pulsarTecla(String visible, String insertar, int retroceso) {
-        if (visible.equals("C")) {
-            campoExpresion.setText("");
-        } else if (visible.equals("←")) {
-            int posicion = campoExpresion.getCaretPosition();
-            String texto = campoExpresion.getText();
-            if (campoExpresion.getSelectedText() != null) {
-                campoExpresion.replaceSelection("");
-            } else if (posicion > 0) {
-                campoExpresion.setText(texto.substring(0, posicion - 1) + texto.substring(posicion));
-                campoExpresion.setCaretPosition(posicion - 1);
-            }
+    /** Copia el ejemplo del método en los campos y calcula. */
+    private void cargarEjemplo() {
+        MetodoCalculo metodo = panelMetodos.getSeleccionado();
+        campoExpresion.setText(metodo.getEjemplo());
+        campoA.setText(metodo.ejemploA());
+        campoB.setText(metodo.ejemploB());
+        campoC.setText("1");
+        campoOrden.setText("3");
+        campoPunto.setText("0");
+        if (metodo == MetodoCalculo.D_PARCIAL) {
+            selectorVariable.setSeleccionado(1);
         } else {
-            campoExpresion.replaceSelection(insertar);
-            int posicion = campoExpresion.getCaretPosition() - retroceso;
-            campoExpresion.setCaretPosition(Math.max(0, posicion));
+            selectorVariable.setSeleccionado(0);
         }
-        campoExpresion.requestFocusInWindow();
+        if (metodo.usaTipoIntegral()) {
+            selectorTipoIntegral.setSeleccionado(0);
+        }
+        actualizarCamposSegunMetodo();
+        calcular();
     }
 
-    /** Ejecuta la operación seleccionada y muestra resultados y gráfica. */
-    private void calcular() {
-        String texto = campoExpresion.getText();
-        int operacion = selectorOperacion.getSeleccionado();
-        Variable variable = variableSeleccionada();
-
-        try {
-            double valorOtra = leerNumero(campoOtra, "valor fijo de " + variable.otra().getSimbolo());
-            ResultadoCalculo resultado;
-            if (operacion == OP_DERIVADA) {
-                resultado = calculadora.derivar(texto, variable);
-            } else if (operacion == OP_INDEFINIDA) {
-                resultado = calculadora.integrarIndefinida(texto, variable);
-            } else if (operacion == OP_DEFINIDA) {
-                double a = leerNumero(campoA, "límite a");
-                double b = leerNumero(campoB, "límite b");
-                resultado = calculadora.integrarDefinida(texto, variable, a, b, valorOtra);
-            } else {
-                double valor = leerNumero(campoA, "valor de " + variable.getSimbolo());
-                double x = valor;
-                double y = valorOtra;
-                if (variable == Variable.Y) {
-                    x = valorOtra;
-                    y = valor;
-                }
-                resultado = calculadora.evaluar(texto, x, y);
+    /** Inserta el texto de la tecla en el campo activo. */
+    private void pulsarTecla(String visible, String insertar, int retroceso) {
+        JTextComponent campo = campoActivo != null ? campoActivo : campoExpresion;
+        if (!campo.isShowing()) {
+            campo = campoExpresion;
+        }
+        if (visible.equals("C")) {
+            campo.setText("");
+        } else if (visible.equals("←")) {
+            int posicion = campo.getCaretPosition();
+            String texto = campo.getText();
+            if (campo.getSelectedText() != null) {
+                campo.replaceSelection("");
+            } else if (posicion > 0) {
+                campo.setText(texto.substring(0, posicion - 1) + texto.substring(posicion));
+                campo.setCaretPosition(posicion - 1);
             }
-            mostrarResultado(resultado, variable, valorOtra);
+        } else if (visible.contains("∞") && campo != campoExpresion) {
+            // En un límite, ∞ reemplaza todo el contenido
+            campo.setText(insertar);
+        } else {
+            campo.replaceSelection(insertar);
+            int posicion = campo.getCaretPosition() - retroceso;
+            campo.setCaretPosition(Math.max(0, posicion));
+        }
+        campo.requestFocusInWindow();
+    }
+
+    /** Ejecuta el método seleccionado. */
+    private void calcular() {
+        MetodoCalculo metodo = panelMetodos.getSeleccionado();
+        EntradaCalculo entrada = new EntradaCalculo();
+        entrada.setExpresion(campoExpresion.getText());
+        entrada.setVariable(selectorVariable.getSeleccionado() == 1 ? Variable.Y : Variable.X);
+        entrada.setOrden(campoOrden.getText());
+        entrada.setPunto(campoPunto.getText());
+        entrada.setLimiteA(campoA.getText());
+        entrada.setLimiteB(campoB.getText());
+        entrada.setPuntoC(campoC.getText());
+        entrada.setDefinida(metodo.esDefinidaObligatoria()
+                || (metodo.usaTipoIntegral() && selectorTipoIntegral.getSeleccionado() == 1));
+        try {
+            ResultadoCalculo resultado = calculadora.resolver(metodo, entrada);
+            mostrarResultado(resultado);
         } catch (ExpresionInvalidaException e) {
             mostrarError("Expresión no válida", e.getMessage()
-                    + ".  Ejemplos válidos: 3x^2 - 2x + 1,  x^2*y,  2sin(3x),  e^(2x),  1/x");
+                    + ".  Ejemplos válidos: x^2·sin(x),  sin(x)/x,  e^(3x),  (3x + 5)/(x^2 + x - 2),  √(9 - x^2)");
         } catch (OperacionNoSoportadaException e) {
-            mostrarError("Operación aún no soportada", e.getMessage());
+            mostrarError("Método no aplicable", e.getMessage());
         } catch (DominioInvalidoException e) {
             mostrarError("Fuera del dominio", e.getMessage());
         } catch (CalculadoraException e) {
@@ -733,72 +757,79 @@ public class VentanaCalculadora extends JFrame {
         }
     }
 
-    private void mostrarResultado(ResultadoCalculo resultado, Variable variable, double valorOtra) {
+    private void mostrarResultado(ResultadoCalculo resultado) {
         ultimoResultado = resultado;
-
-        // Tarjeta de resultado en estado normal
         tarjetaResultado.setColorFondo(Tema.SUPERFICIE);
         etiquetaTipoResultado.setForeground(Tema.PRIMARIO);
-        etiquetaTipoResultado.setText(resultado.getTipo().getNombre().toUpperCase() + "  ·  RESPECTO A "
-                + variable.getSimbolo().toUpperCase());
-        textoResultado.setFont(Tema.mono(23f));
+        etiquetaTipoResultado.setText(resultado.getTipo().getNombre().toUpperCase() + "  ·  "
+                + resultado.getNombreMetodo().toUpperCase());
+        textoResultado.setFont(Tema.mono(21f));
         textoResultado.setForeground(Tema.TEXTO);
         textoResultado.setText(resultado.getTextoResultado());
         botonCopiar.setEnabled(true);
 
-        // Procedimiento
         vistaPasos.setText(RenderizadorHtml.pasos(resultado));
         vistaPasos.setCaretPosition(0);
-
-        // Gráfica
-        Expresion funcion = resultado.getExpresion();
-        ResultadoCalculo.TipoOperacion tipo = resultado.getTipo();
-        if (tipo == ResultadoCalculo.TipoOperacion.DERIVADA) {
-            panelGrafico.graficar(funcion, funcion.toString(), resultado.getExpresionResultado(),
-                    "f' = " + resultado.getExpresionResultado(), variable, valorOtra);
-        } else if (tipo == ResultadoCalculo.TipoOperacion.INTEGRAL_INDEFINIDA) {
-            panelGrafico.graficar(funcion, funcion.toString(), resultado.getExpresionResultado(),
-                    "F = " + resultado.getExpresionResultado() + "  (C = 0)", variable, valorOtra);
-        } else if (tipo == ResultadoCalculo.TipoOperacion.INTEGRAL_DEFINIDA) {
-            panelGrafico.graficar(funcion, funcion.toString(), null, null, variable, valorOtra);
-            panelGrafico.sombrearArea(resultado.getLimiteInferior().doubleValue(),
-                    resultado.getLimiteSuperior().doubleValue());
-        } else {
-            panelGrafico.graficar(funcion, funcion.toString(), null, null, variable, valorOtra);
-            panelGrafico.marcarPunto(leerNumeroSinError(campoA), resultado.getValorNumerico().doubleValue());
-        }
+        actualizarGrafica(resultado);
 
         vistaExplicacion.setText(RenderizadorHtml.estadoVacio("Cálculo listo",
                 "Pulsa \"Explicar con IA\" para recibir la explicación del procedimiento."));
-        mostrarEstado(tipo.getNombre() + " calculada correctamente.", Tema.EXITO);
+        Color color = resultado.getNotas().isEmpty() ? Tema.EXITO : Tema.ADVERTENCIA;
+        String estado = resultado.getNotas().isEmpty() ? "Cálculo realizado correctamente (" + resultado.getNombreMetodo() + ")."
+                : "Calculado. Revisa la nota en el procedimiento.";
+        mostrarEstado(estado, color);
     }
 
-    /** Muestra el error dentro de la tarjeta de resultado (sin ventanas emergentes). */
+    private void actualizarGrafica(ResultadoCalculo resultado) {
+        Graficable funcion = resultado.getExpresion();
+        Variable variable = resultado.getVariable() == null ? Variable.X : resultado.getVariable();
+        ResultadoCalculo.TipoOperacion tipo = resultado.getTipo();
+        if (tipo == ResultadoCalculo.TipoOperacion.DERIVADA_IMPLICITA) {
+            panelGrafico.graficarImplicita(resultado.getCurvaImplicita(), resultado.getTextoOriginal());
+            return;
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.INTEGRAL_DEFINIDA) {
+            panelGrafico.graficar(funcion, funcion.toString(), null, null, Variable.X, 1.0);
+            panelGrafico.sombrearArea(resultado.getLimiteInferior().doubleValue(),
+                    resultado.getLimiteSuperior().doubleValue());
+            return;
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.LIMITE) {
+            panelGrafico.graficar(funcion, funcion.toString(), null, null, Variable.X, 1.0);
+            if (resultado.getPuntoX() != null) {
+                panelGrafico.marcarPunto(resultado.getPuntoX().doubleValue(), resultado.getPuntoY().doubleValue());
+            }
+            return;
+        }
+        panelGrafico.graficar(funcion, funcion.toString(), resultado.getExpresionResultado(),
+                resultado.getEtiquetaSecundaria(), variable, 1.0);
+    }
+
+    /** Muestra el error dentro de la tarjeta de resultado. */
     private void mostrarError(String titulo, String mensaje) {
-        tarjetaResultado.setColorFondo(new Color(254, 242, 242));
+        tarjetaResultado.setColorFondo(Tema.ERROR_SUAVE);
         etiquetaTipoResultado.setForeground(Tema.ERROR);
         etiquetaTipoResultado.setText(titulo.toUpperCase());
-        textoResultado.setFont(Tema.texto(15.5f));
-        textoResultado.setForeground(new Color(127, 29, 29));
+        textoResultado.setFont(Tema.texto(15f));
+        textoResultado.setForeground(new Color(254, 202, 202));
         textoResultado.setText(mensaje);
         botonCopiar.setEnabled(false);
         ultimoResultado = null;
         vistaPasos.setText(RenderizadorHtml.estadoVacio("No se pudo completar el cálculo",
                 "Corrige la función o los datos y vuelve a pulsar Calcular."));
         mostrarEstado(titulo + ".", Tema.ERROR);
-        campoExpresion.requestFocusInWindow();
     }
 
     private void mostrarEstadoInicial() {
         tarjetaResultado.setColorFondo(Tema.SUPERFICIE);
         etiquetaTipoResultado.setForeground(Tema.TEXTO_SECUNDARIO);
         etiquetaTipoResultado.setText("RESULTADO");
-        textoResultado.setFont(Tema.texto(17f));
+        textoResultado.setFont(Tema.texto(16f));
         textoResultado.setForeground(Tema.TEXTO_TENUE);
-        textoResultado.setText("Escribe una función, elige la operación y pulsa Calcular.");
+        textoResultado.setText("Elige un método en la lista, escribe la función y pulsa Calcular.");
         botonCopiar.setEnabled(false);
         vistaPasos.setText(RenderizadorHtml.estadoVacio("Aquí verás el procedimiento paso a paso",
-                "Cada regla aplicada aparece explicada con su resultado parcial."));
+                "Los pasos del método elegido aparecen resaltados en cian."));
         vistaExplicacion.setText(RenderizadorHtml.estadoVacio("Asistente de IA",
                 "Realiza un cálculo y pulsa \"Explicar con IA\". La IA no calcula: explica los pasos del motor."));
     }
@@ -807,7 +838,7 @@ public class VentanaCalculadora extends JFrame {
     private void explicarConIA() {
         if (ultimoResultado == null) {
             vistaExplicacion.setText(RenderizadorHtml.estadoVacio("Primero realiza un cálculo",
-                    "Escribe una función a la izquierda y pulsa Calcular."));
+                    "Elige un método, escribe la función y pulsa Calcular."));
             return;
         }
         final ResultadoCalculo resultado = ultimoResultado;
@@ -822,13 +853,11 @@ public class VentanaCalculadora extends JFrame {
         SwingWorker<String, Void> trabajador = new SwingWorker<String, Void>() {
             @Override
             protected String doInBackground() {
-                // Hilo secundario: la ventana sigue respondiendo
                 return tutorActual.explicar(resultado, pregunta);
             }
 
             @Override
             protected void done() {
-                // De vuelta en el hilo de Swing
                 detenerAnimacionCarga();
                 try {
                     String explicacion = get();
@@ -870,16 +899,6 @@ public class VentanaCalculadora extends JFrame {
         botonExplicar.setText("Explicar con IA");
     }
 
-    private void abrirConfiguracionIA() {
-        DialogoConfiguracionIA dialogo = new DialogoConfiguracionIA(this, ConfiguracionIA.cargar());
-        dialogo.setVisible(true); // modal: espera a que se cierre
-        if (dialogo.seGuardo()) {
-            tutor = new TutorIA(ConfiguracionIA.cargar());
-            actualizarInsigniaIA();
-            mostrarEstado("Configuración de IA guardada: " + tutor.describirProveedor(), Tema.EXITO);
-        }
-    }
-
     private void actualizarInsigniaIA() {
         if (tutor.tieneProveedorRemoto()) {
             ConfiguracionIA configuracion = tutor.getConfiguracion();
@@ -891,18 +910,17 @@ public class VentanaCalculadora extends JFrame {
             } else if (nombre.equals(ConfiguracionIA.PROVEEDOR_OLLAMA)) {
                 nombre = "Ollama";
             }
-            insigniaIA.actualizar("IA: " + nombre + " · " + configuracion.getModeloEfectivo(),
-                    new Color(74, 222, 128));
+            insigniaIA.actualizar("IA: " + nombre + " · " + configuracion.getModeloEfectivo(), Tema.EXITO);
             etiquetaProveedor.setText("Proveedor: " + tutor.describirProveedor());
         } else {
-            insigniaIA.actualizar("IA: Explicador local", new Color(251, 191, 36));
-            etiquetaProveedor.setText("Proveedor: Explicador Local (sin conexión). Pulsa \"Configurar IA\" para usar Claude, OpenAI u Ollama.");
+            insigniaIA.actualizar("IA: Explicador local", Tema.ADVERTENCIA);
+            etiquetaProveedor.setText("Proveedor: Explicador Local (sin conexión). La IA en línea se configura en "
+                    + "ConfiguracionIA.java.");
         }
     }
 
     private void copiarResultado() {
-        String texto = textoResultado.getText();
-        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(texto), null);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(textoResultado.getText()), null);
         mostrarEstado("Resultado copiado al portapapeles.", Tema.EXITO);
     }
 
@@ -922,24 +940,24 @@ public class VentanaCalculadora extends JFrame {
         String m = Tema.familiaMono();
         String html = "<html><body style='font-family:" + Tema.familiaTexto() + "; font-size:13pt; color:"
                 + Tema.hex(Tema.TEXTO) + "'>"
+                + "<p><b style='color:" + c + "; font-size:15pt'>Cómo usar la calculadora</b></p>"
+                + "<p>1. Elige <b>Derivadas</b> o <b>Integrales</b> y un método de la lista.<br>"
+                + "2. Escribe la función (o pulsa <b>Cargar ejemplo</b>).<br>"
+                + "3. Pulsa <b>Calcular</b>. Los pasos del método elegido aparecen resaltados.</p>"
                 + "<p><b style='color:" + c + "; font-size:15pt'>Cómo escribir las funciones</b></p>"
-                + "<table cellpadding='6' cellspacing='0'>"
-                + filaAyuda("Variables", "x, y", m)
-                + filaAyuda("Potencias", "x^2,  x^-1,  x^(1/2),  1/x", m)
-                + filaAyuda("Producto", "3x,  2*x*y,  x^2y", m)
-                + filaAyuda("Funciones", "sin(kx) o sen(kx),  cos(kx),  e^(kx) o exp(kx),  ln(kx)", m)
+                + "<table cellpadding='5' cellspacing='0'>"
+                + filaAyuda("Potencias", "x^2,  x^-1,  x^(1/2),  √(x),  1/x^3", m)
+                + filaAyuda("Productos", "3x,  x^2·sin(x),  x*e^x,  (x+1)(x-1)", m)
+                + filaAyuda("Cocientes", "sin(x)/x,  (3x + 5)/(x^2 + x - 2)", m)
+                + filaAyuda("Funciones", "sin cos tan sec csc cot  ln log  e^( )  √( )  arcsin arccos arctan", m)
+                + filaAyuda("Compuestas", "sin(x^2 + 1),  e^(x^2),  ln(cos(x))", m)
                 + filaAyuda("Constantes", "pi,  e", m)
+                + filaAyuda("Implícita", "x^2 + y^2 = 25", m)
+                + filaAyuda("Límites", "∞,  -∞,  0,  pi/2   (en 'x tiende a', a y b)", m)
                 + "</table>"
-                + "<p><b style='color:" + c + "'>Reglas</b></p>"
-                + "<p>&bull; El argumento de cada función debe ser lineal: 2x, -y, x/2.<br>"
-                + "&bull; No se admite el producto de dos funciones: sin(x)cos(x).<br>"
-                + "&bull; Escribe los polinomios desarrollados: x^2 + 2x en lugar de x(x + 2).<br>"
-                + "&bull; e^2x se interpreta como e^(2x).<br>"
-                + "&bull; La otra variable se trata como constante (derivada o integral parcial); "
-                + "para graficar y evaluar se usa su valor fijo.</p>"
-                + "<p><b style='color:" + c + "'>Atajos</b></p>"
-                + "<p>&bull; Enter: calcular.&nbsp;&nbsp; &bull; Teclado matemático: inserta símbolos donde está el cursor.<br>"
-                + "&bull; Gráfica: rueda = zoom, arrastrar = mover, doble clic = restablecer.</p>"
+                + "<p><b style='color:" + c + "'>Teclado</b><br>Escribe donde está el cursor: en la función o en los "
+                + "límites. Las teclas ∞ y −∞ sirven para límites e integrales impropias.</p>"
+                + "<p><b style='color:" + c + "'>Gráfica</b><br>Rueda = zoom, arrastrar = mover, doble clic = restablecer.</p>"
                 + "</body></html>";
         vistaPasos.setText(html);
         vistaPasos.setCaretPosition(0);
@@ -947,41 +965,8 @@ public class VentanaCalculadora extends JFrame {
     }
 
     private String filaAyuda(String nombre, String ejemplo, String fuenteMono) {
-        return "<tr><td width='120'><b>" + nombre + "</b></td><td><span style='font-family:" + fuenteMono
-                + "'>" + RenderizadorHtml.escapar(ejemplo) + "</span></td></tr>";
-    }
-
-    // ==================================================================
-    // UTILIDADES
-    // ==================================================================
-
-    /**
-     * Lee un número de un campo de texto. Admite expresiones constantes como
-     * 1/2, pi o pi/2, reutilizando el analizador de la calculadora.
-     */
-    private double leerNumero(CampoModerno campo, String nombre) throws ExpresionInvalidaException {
-        String texto = campo.getText().trim();
-        if (texto.isEmpty()) {
-            throw new ExpresionInvalidaException("Falta el " + nombre);
-        }
-        Expresion expresion;
-        try {
-            expresion = calculadora.interpretar(texto);
-        } catch (ExpresionInvalidaException e) {
-            throw new ExpresionInvalidaException("El " + nombre + " no es un número válido: " + texto);
-        }
-        if (expresion.dependeDe(Variable.X) || expresion.dependeDe(Variable.Y)) {
-            throw new ExpresionInvalidaException("El " + nombre + " debe ser un número, no puede contener variables");
-        }
-        return expresion.evaluar(0.0, 0.0);
-    }
-
-    private double leerNumeroSinError(CampoModerno campo) {
-        try {
-            return leerNumero(campo, "valor");
-        } catch (ExpresionInvalidaException e) {
-            return 0.0;
-        }
+        return "<tr><td width='110'><b>" + nombre + "</b></td><td><span style='font-family:" + fuenteMono + "; color:"
+                + Tema.hex(Tema.PRIMARIO) + "'>" + RenderizadorHtml.escapar(ejemplo) + "</span></td></tr>";
     }
 
     private void mostrarEstado(String mensaje, Color color) {

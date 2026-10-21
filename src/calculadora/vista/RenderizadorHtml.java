@@ -1,8 +1,10 @@
 package calculadora.vista;
 
+import calculadora.modelo.PasoDetallado;
 import calculadora.modelo.ResultadoCalculo;
 import calculadora.vista.estilo.Tema;
 
+import java.awt.Color;
 import java.util.List;
 
 /**
@@ -29,7 +31,7 @@ public final class RenderizadorHtml {
     public static String estadoVacio(String titulo, String detalle) {
         return encabezadoDocumento()
                 + "<table width='100%' cellpadding='0' cellspacing='0'><tr><td align='center'>"
-                + "<br><br><font size='6' color='" + Tema.hex(Tema.BORDE_FOCO) + "'>&#8747;</font><br>"
+                + "<br><br><font size='7' color='" + Tema.hex(Tema.PRIMARIO_SUAVE_FUERTE) + "'>&#8747;</font><br>"
                 + "<p style='font-size:15pt; color:" + Tema.hex(Tema.TEXTO) + "'><b>" + escapar(titulo) + "</b></p>"
                 + "<p style='font-size:12pt; color:" + Tema.hex(Tema.TEXTO_SECUNDARIO) + "'>" + escapar(detalle) + "</p>"
                 + "</td></tr></table></body></html>";
@@ -45,32 +47,55 @@ public final class RenderizadorHtml {
         StringBuilder html = new StringBuilder();
         html.append(encabezadoDocumento());
 
-        // Datos generales
+        // Pastillas con la operación y el método
         html.append("<table cellpadding='0' cellspacing='0'><tr>");
         html.append(pastilla(resultado.getTipo().getNombre(), Tema.PRIMARIO_SUAVE, Tema.PRIMARIO));
-        if (resultado.getVariable() != null && resultado.getTipo() != ResultadoCalculo.TipoOperacion.EVALUACION) {
+        if (!resultado.getNombreMetodo().isEmpty()) {
             html.append("<td width='8'></td>");
-            html.append(pastilla("respecto a " + resultado.getVariable().getSimbolo(), Tema.ACENTO_SUAVE, Tema.ACENTO));
+            html.append(pastilla(resultado.getNombreMetodo(), Tema.ACENTO_SUAVE, Tema.ACENTO));
         }
         html.append("</tr></table>");
+
+        String etiqueta = resultado.getTipo() == ResultadoCalculo.TipoOperacion.DERIVADA_IMPLICITA ? "Ecuación: "
+                : "f = ";
+        String expresion = resultado.getTipo() == ResultadoCalculo.TipoOperacion.DERIVADA_IMPLICITA
+                ? resultado.getTextoOriginal() : String.valueOf(resultado.getExpresion());
         html.append("<p style='margin-top:10px; color:").append(Tema.hex(Tema.TEXTO_SECUNDARIO)).append("'>")
-                .append("f = <span style='font-family:").append(Tema.familiaMono()).append("; font-size:13pt; color:")
-                .append(Tema.hex(Tema.TEXTO)).append("'>").append(escapar(resultado.getExpresion().toString()))
-                .append("</span></p>");
+                .append(etiqueta).append("<span style='font-family:").append(Tema.familiaMono())
+                .append("; font-size:14pt; color:").append(Tema.hex(Tema.TEXTO)).append("'>")
+                .append(escapar(expresion)).append("</span></p>");
+
+        // Notas (por ejemplo: "esta función no necesita la regla elegida")
+        List<String> notas = resultado.getNotas();
+        for (int i = 0; i < notas.size(); i++) {
+            html.append("<table width='100%' cellpadding='9' cellspacing='0'><tr><td bgcolor='")
+                    .append(Tema.hex(Tema.ADVERTENCIA_SUAVE)).append("'><font color='").append(Tema.hex(Tema.ADVERTENCIA))
+                    .append("'><b>Nota: </b></font><font color='").append(Tema.hex(Tema.TEXTO)).append("'>")
+                    .append(escapar(notas.get(i))).append("</font></td></tr></table><br>");
+        }
 
         // Pasos
         html.append("<table width='100%' cellpadding='0' cellspacing='0'>");
-        List<String> pasos = resultado.getPasos();
-        for (int i = 0; i < pasos.size(); i++) {
-            html.append(filaPaso(i + 1, pasos.get(i)));
+        List<PasoDetallado> detallados = resultado.getPasosDetallados();
+        if (!detallados.isEmpty()) {
+            int numero = 1;
+            for (int i = 0; i < detallados.size(); i++) {
+                html.append(filaDetallada(numero, detallados.get(i)));
+                numero++;
+            }
+        } else {
+            List<String> pasos = resultado.getPasos();
+            for (int i = 0; i < pasos.size(); i++) {
+                html.append(filaSimple(i + 1, pasos.get(i)));
+            }
         }
         html.append("</table>");
 
         // Resultado final
-        html.append("<table width='100%' cellpadding='12' cellspacing='0' style='margin-top:8px'>")
-                .append("<tr><td bgcolor='").append(Tema.hex(new java.awt.Color(236, 253, 245))).append("'>")
+        html.append("<table width='100%' cellpadding='12' cellspacing='0' style='margin-top:10px'>")
+                .append("<tr><td bgcolor='").append(Tema.hex(Tema.EXITO_SUAVE)).append("'>")
                 .append("<font color='").append(Tema.hex(Tema.EXITO)).append("'><b>RESULTADO</b></font><br>")
-                .append("<span style='font-family:").append(Tema.familiaMono()).append("; font-size:14pt; color:")
+                .append("<span style='font-family:").append(Tema.familiaMono()).append("; font-size:15pt; color:")
                 .append(Tema.hex(Tema.TEXTO)).append("'>").append(escapar(resultado.getTextoResultado()))
                 .append("</span></td></tr></table>");
 
@@ -78,83 +103,57 @@ public final class RenderizadorHtml {
         return html.toString();
     }
 
-    /**
-     * Genera una fila con el número del paso, el nombre de la regla, la
-     * explicación y el resultado parcial resaltado.
-     */
-    private static String filaPaso(int numero, String paso) {
-        String termino = "";
-        String cuerpo = paso;
-
-        // "Término 2 [3x^2]: Regla ..." -> separar el término
-        int finEncabezado = paso.indexOf("]: ");
-        if (paso.startsWith("Término") && finEncabezado > 0) {
-            int inicioCorchete = paso.indexOf('[');
-            termino = paso.substring(inicioCorchete + 1, finEncabezado);
-            cuerpo = paso.substring(finEncabezado + 3);
-        }
-
-        // Nombre de la regla: texto antes del primer ": "
-        String regla = "";
-        String explicacion = cuerpo;
-        int dosPuntos = cuerpo.indexOf(": ");
-        if (dosPuntos > 0 && dosPuntos < 120) {
-            regla = cuerpo.substring(0, dosPuntos);
-            explicacion = cuerpo.substring(dosPuntos + 2);
-        }
-
-        // Resultado parcial
-        String parcial = "";
-        String nota = "";
-        int indiceResultado = explicacion.indexOf("Resultado: ");
-        if (indiceResultado >= 0) {
-            String resto = explicacion.substring(indiceResultado + "Resultado: ".length());
-            explicacion = explicacion.substring(0, indiceResultado).trim();
-            int punto = resto.indexOf(". ");
-            if (punto > 0) {
-                parcial = resto.substring(0, punto);
-                nota = resto.substring(punto + 2).trim();
-            } else {
-                parcial = resto;
-            }
-            if (parcial.endsWith(".")) {
-                parcial = parcial.substring(0, parcial.length() - 1);
-            }
-        }
+    /** Fila de un paso del motor simbólico (con sangría según la profundidad). */
+    private static String filaDetallada(int numero, PasoDetallado paso) {
+        int sangria = Math.min(paso.getProfundidad(), 6) * 22;
+        boolean destacado = paso.isDestacado();
+        Color fondo = destacado ? Tema.PRIMARIO_SUAVE : Tema.SUPERFICIE;
+        Color colorNumero = destacado ? Tema.PRIMARIO : Tema.TEXTO_SECUNDARIO;
+        Color fondoNumero = destacado ? Tema.PRIMARIO_SUAVE_FUERTE : Tema.SUPERFICIE_ALTERNA;
 
         StringBuilder fila = new StringBuilder();
-        fila.append("<tr>");
-        // Número
-        fila.append("<td width='34' valign='top' style='padding-top:12px'>")
-                .append("<table cellpadding='0' cellspacing='0'><tr><td width='26' height='26' align='center' bgcolor='")
-                .append(Tema.hex(Tema.PRIMARIO_SUAVE)).append("'><font color='").append(Tema.hex(Tema.PRIMARIO))
-                .append("'><b>").append(numero).append("</b></font></td></tr></table></td>");
-        // Contenido
-        fila.append("<td valign='top' style='padding-top:10px; padding-bottom:10px; border-bottom:1px solid ")
-                .append(Tema.hex(Tema.BORDE)).append("'>");
-        if (!termino.isEmpty()) {
-            fila.append("<span style='font-family:").append(Tema.familiaMono()).append("; color:")
-                    .append(Tema.hex(Tema.TEXTO_SECUNDARIO)).append("'>Término  ").append(escapar(termino))
-                    .append("</span><br>");
+        fila.append("<tr><td>");
+        fila.append("<table width='100%' cellpadding='0' cellspacing='0'><tr>");
+        if (sangria > 0) {
+            fila.append("<td width='").append(sangria).append("'></td>");
         }
-        if (!regla.isEmpty()) {
-            fila.append("<b style='color:").append(Tema.hex(Tema.TEXTO)).append("'>").append(escapar(regla))
-                    .append("</b><br>");
+        fila.append("<td bgcolor='").append(Tema.hex(fondo)).append("'>");
+        fila.append("<table width='100%' cellpadding='7' cellspacing='0'><tr>");
+        fila.append("<td width='30' valign='top'><table cellpadding='3' cellspacing='0'><tr><td align='center' bgcolor='")
+                .append(Tema.hex(fondoNumero)).append("'><font color='").append(Tema.hex(colorNumero)).append("'><b>&nbsp;")
+                .append(numero).append("&nbsp;</b></font></td></tr></table></td>");
+        fila.append("<td valign='top'>");
+        fila.append("<b style='color:").append(Tema.hex(destacado ? Tema.PRIMARIO : Tema.TEXTO)).append("'>")
+                .append(escapar(paso.getTitulo())).append("</b>");
+        if (destacado) {
+            fila.append("&nbsp;&nbsp;<font color='").append(Tema.hex(Tema.SECUNDARIO)).append("'>(método elegido)</font>");
         }
-        fila.append("<span style='color:").append(Tema.hex(Tema.TEXTO_SECUNDARIO)).append("'>")
-                .append(escapar(explicacion)).append("</span>");
-        if (!parcial.isEmpty()) {
-            fila.append("<br><span style='color:").append(Tema.hex(Tema.TEXTO_SECUNDARIO)).append("'>Resultado: </span>")
+        if (!paso.getExpresion().isEmpty()) {
+            fila.append("<br><span style='font-family:").append(Tema.familiaMono()).append("; color:")
+                    .append(Tema.hex(Tema.TEXTO_SECUNDARIO)).append("'>").append(escapar(paso.getExpresion()))
+                    .append("</span>");
+        }
+        if (!paso.getDetalle().isEmpty()) {
+            fila.append("<br><span style='color:").append(Tema.hex(Tema.TEXTO_SECUNDARIO)).append("'>")
+                    .append(escapar(paso.getDetalle())).append("</span>");
+        }
+        if (!paso.getResultado().isEmpty()) {
+            fila.append("<br><span style='color:").append(Tema.hex(Tema.TEXTO_TENUE)).append("'>&rArr; </span>")
                     .append("<span style='font-family:").append(Tema.familiaMono()).append("; color:")
-                    .append(Tema.hex(Tema.PRIMARIO)).append("; font-size:13pt'><b>").append(escapar(parcial))
+                    .append(Tema.hex(Tema.PRIMARIO)).append("; font-size:13pt'><b>").append(escapar(paso.getResultado()))
                     .append("</b></span>");
         }
-        if (!nota.isEmpty()) {
-            fila.append("<br><i style='color:").append(Tema.hex(Tema.ACENTO)).append("'>").append(escapar(nota))
-                    .append("</i>");
-        }
-        fila.append("</td></tr>");
+        fila.append("</td></tr></table>");
+        fila.append("</td></tr></table>");
+        fila.append("</td></tr><tr><td height='5'></td></tr>");
         return fila.toString();
+    }
+
+    /** Fila de un paso en texto simple (motor por términos). */
+    private static String filaSimple(int numero, String paso) {
+        return "<tr><td><table width='100%' cellpadding='7' cellspacing='0'><tr><td bgcolor='" + Tema.hex(Tema.SUPERFICIE)
+                + "'><font color='" + Tema.hex(Tema.PRIMARIO) + "'><b>" + numero + ".</b></font> <span style='color:"
+                + Tema.hex(Tema.TEXTO_SECUNDARIO) + "'>" + escapar(paso) + "</span></td></tr></table></td></tr>";
     }
 
     /**
@@ -179,14 +178,13 @@ public final class RenderizadorHtml {
                 continue;
             }
             String contenido = escapar(linea);
-            // Resaltar el prefijo "Paso n:", "Resultado final:", "Consejo:", etc.
             int dosPuntos = linea.indexOf(':');
             if (dosPuntos > 0 && dosPuntos <= 22) {
                 String prefijo = escapar(linea.substring(0, dosPuntos + 1));
                 String resto = escapar(linea.substring(dosPuntos + 1));
                 contenido = "<b style='color:" + Tema.hex(Tema.PRIMARIO) + "'>" + prefijo + "</b>" + resto;
             }
-            html.append("<p style='margin-top:0; margin-bottom:9px; line-height:150%'>").append(contenido).append("</p>");
+            html.append("<p style='margin-top:0; margin-bottom:9px'>").append(contenido).append("</p>");
         }
         html.append("</body></html>");
         return html.toString();
@@ -207,7 +205,7 @@ public final class RenderizadorHtml {
                 + Tema.hex(Tema.TEXTO) + "; margin:4px 6px 4px 4px'>";
     }
 
-    private static String pastilla(String texto, java.awt.Color fondo, java.awt.Color color) {
+    private static String pastilla(String texto, Color fondo, Color color) {
         return "<td bgcolor='" + Tema.hex(fondo) + "' style='padding:3px 10px 3px 10px'><font color='"
                 + Tema.hex(color) + "'><b>" + escapar(texto) + "</b></font></td>";
     }

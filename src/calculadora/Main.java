@@ -5,7 +5,6 @@ import calculadora.vista.estilo.Tema;
 
 import javax.swing.BorderFactory;
 import javax.swing.SwingUtilities;
-import java.awt.Color;
 import javax.swing.UIManager;
 
 /**
@@ -32,8 +31,8 @@ public class Main {
 
         // Estilo de los textos de ayuda emergentes (tooltips)
         UIManager.put("ToolTip.font", Tema.texto(12.5f));
-        UIManager.put("ToolTip.background", Tema.TEXTO);
-        UIManager.put("ToolTip.foreground", Color.WHITE);
+        UIManager.put("ToolTip.background", Tema.SUPERFICIE_ALTERNA);
+        UIManager.put("ToolTip.foreground", Tema.TEXTO);
         UIManager.put("ToolTip.border", BorderFactory.createEmptyBorder(6, 10, 6, 10));
 
         SwingUtilities.invokeLater(new Runnable() {

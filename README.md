@@ -7,16 +7,17 @@ Aplicación de escritorio en **Java Swing** que deriva, integra y evalúa funcio
 
 ## Características
 
-- **Derivadas** (parciales): constante, potencia, suma/resta y regla de la cadena para sin, cos, e^ y ln.
-- **Integrales indefinidas**: potencia, 1/v → ln|v|, integrales inmediatas trigonométricas y exponenciales, y `+ C`.
-- **Integrales definidas** con el Teorema Fundamental del Cálculo y validación de dominio (integrales impropias, raíces no reales).
-- **Procedimiento paso a paso** generado por cada clase de término (`describirDerivada` / `describirIntegral`).
-- **Resultados exactos**: enteros, fracciones N/D (D ≤ 100) y decimales.
-- **Interfaz moderna** dibujada con Graphics2D: tarjetas, botones redondeados, selectores segmentados y teclado matemático.
-- **Graficador 2D**: antialiasing, cuadrícula, zoom con la rueda, arrastre y área sombreada con `AlphaComposite`.
-- **Asistente de IA**: Anthropic, OpenAI u Ollama local, con respaldo automático al **Explicador Local** sin red.
-- **Sin dependencias**: JDK 11+, `java.net.http.HttpClient` y JSON manual (`JsonSencillo`).
-- **99 pruebas automáticas** sin JUnit.
+- **Lista de métodos** para elegir la ley o regla: constante, identidad, múltiplo, suma, potencia, producto, cociente, cadena, exponenciales, logarítmicas, trigonométricas, inversas, orden superior, implícita, parciales y **L'Hôpital**; en integrales: propiedades, potencia, logaritmo, exponenciales, trigonométricas, **sustitución, partes, fracciones parciales, sustitución trigonométrica**, TFC, límites iguales, inversión, aditividad e **impropias con ±∞**.
+- **Procedimiento paso a paso** con el método elegido resaltado.
+- **Motor simbólico** propio (árbol de expresión, simplificador, derivador, integrador con verificación).
+- **Límites infinitos** (∞ y −∞) en L'Hôpital y en integrales impropias.
+- **Graficador 2D**: derivadas, áreas (también hasta ∞), puntos de límite y curvas implícitas.
+- **Interfaz en modo oscuro** con teclado matemático (números, funciones, ∞).
+- **Asistente de IA** configurable en el código (Claude, OpenAI u Ollama) con respaldo al Explicador Local.
+- **Sin dependencias**: JDK 11+, `java.net.http.HttpClient` y JSON manual.
+- **171 pruebas automáticas** sin JUnit.
+
+![Regla del producto](docs/capturas/regla_del_producto.png)
 
 ## Inicio rápido (Windows / PowerShell)
 
@@ -30,9 +31,7 @@ O directamente: `java -jar dist\CalculadoraCalculo.jar`
 
 ### Asistente de IA (opcional)
 
-Pulse **Configurar IA** en la aplicación, elija Claude, OpenAI u Ollama, pegue su clave, pulse **Probar conexión** y **Guardar**. Sin configuración se usa el Explicador Local (sin Internet).
-
-![Asistente IA](docs/capturas/asistente_ia.png)
+Edite `src/calculadora/ia/ConfiguracionIA.java` (constantes `PROVEEDOR`, `CLAVE_API`, `MODELO`) y recompile con `.\build.bat`. Sin clave se usa el Explicador Local (sin Internet).
 
 ## Estructura
 
@@ -40,15 +39,14 @@ Pulse **Configurar IA** en la aplicación, elija Claude, OpenAI u Ollama, pegue 
 calculadora java/
 ├── src/calculadora/
 │   ├── Main.java
-│   ├── modelo/        Variable, Termino, TerminoPolinomico, TerminoFuncional,
-│   │                  TerminoSeno, TerminoCoseno, TerminoExponencial, TerminoLogaritmico,
-│   │                  Expresion, ResultadoCalculo, Calculadora (fachada)
+│   ├── modelo/        Términos, Expresion, ResultadoCalculo, MetodoCalculo, Calculadora (fachada)
+│   ├── simbolico/     Árbol de expresión, Simplificador, Derivador, Integrador, Limites
 │   ├── analisis/      AnalizadorExpresion (descenso recursivo)
 │   ├── excepciones/   CalculadoraException + 4 subclases
 │   ├── util/          FormatoNumeros, JsonSencillo
 │   ├── ia/            ProveedorIA, ProveedorAnthropic, ProveedorCompatibleOpenAI,
 │   │                  ConfiguracionIA, ExplicadorLocal, TutorIA
-│   ├── vista/         VentanaCalculadora, PanelGrafico2D
+│   ├── vista/         VentanaCalculadora, PanelMetodos, PanelGrafico2D, componentes y estilo
 │   └── pruebas/       PruebasCalculadora
 ├── docs/
 │   ├── Documento_Tecnico.md
@@ -62,14 +60,15 @@ calculadora java/
 
 ## Ejemplos
 
-| Entrada | Operación | Resultado |
+| Método | Entrada | Resultado |
 |---|---|---|
-| `3x^2 - 2x + 1` | d/dx | `6x - 2` |
-| `x^2*y` | ∂/∂y | `x^2` |
-| `y*sin(x)` | ∂/∂x | `ycos(x)` |
-| `e^(2x)` | ∫ dx | `(1/2)e^(2x) + C` |
-| `1/x` | ∫ dx | `ln\|x\| + C` |
-| `sin(x)` | ∫ de 0 a π | `2` |
+| Regla del producto | `x^2·sin(x)` | `2x·sin(x) + x^2·cos(x)` |
+| Regla de L'Hôpital | `sin(x)/x`, x → 0 | `1` |
+| Derivación implícita | `x^2 + y^2 = 25` | `dy/dx = -x/y` |
+| Por partes | `x·e^x` | `x·e^x - e^x + C` |
+| Fracciones parciales | `1/(x^2 - 1)` | `ln\|x - 1\|/2 - ln\|x + 1\|/2 + C` |
+| Sustitución trigonométrica | `1/√(4 - x^2)` | `arcsin(x/2) + C` |
+| Impropia | `1/x^2` en [1, ∞) | `1` |
 
 ## Documentación
 

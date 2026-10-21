@@ -6,6 +6,10 @@ package calculadora.modelo;
  * Al derivar o integrar se elige una "variable de trabajo" v. La otra
  * variable se trata como una CONSTANTE (derivación e integración parcial).
  * </p>
+ * <p>
+ * U y THETA no las escribe el usuario: el motor simbólico las usa como
+ * variables auxiliares al aplicar sustitución y sustitución trigonométrica.
+ * </p>
  */
 public enum Variable {
 
@@ -13,7 +17,13 @@ public enum Variable {
     X("x"),
 
     /** Variable y. */
-    Y("y");
+    Y("y"),
+
+    /** Variable auxiliar u, usada internamente en el método de sustitución. */
+    U("u"),
+
+    /** Ángulo auxiliar θ, usado internamente en la sustitución trigonométrica. */
+    THETA("θ");
 
     /** Símbolo en minúscula que se muestra al usuario. */
     private final String simbolo;
@@ -33,7 +43,8 @@ public enum Variable {
     }
 
     /**
-     * Devuelve la otra variable: si esta es X devuelve Y, y viceversa.
+     * Devuelve la otra variable: si esta es X devuelve Y, y viceversa
+     * (para las variables auxiliares devuelve X).
      *
      * @return la variable distinta a esta
      */

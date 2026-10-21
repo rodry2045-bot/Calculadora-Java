@@ -11,6 +11,8 @@ import calculadora.ia.TutorIA;
 import calculadora.util.JsonSencillo;
 import calculadora.excepciones.OperacionNoSoportadaException;
 import calculadora.modelo.Calculadora;
+import calculadora.modelo.EntradaCalculo;
+import calculadora.modelo.MetodoCalculo;
 import calculadora.modelo.Expresion;
 import calculadora.modelo.ResultadoCalculo;
 import calculadora.modelo.Termino;
@@ -51,6 +53,8 @@ public class PruebasCalculadora {
         probarErrores();
         probarJson();
         probarModuloIA();
+        probarMotorSimbolico();
+        probarListaDeMetodos();
 
         System.out.println();
         System.out.println("----------------------------------------------");
@@ -288,6 +292,161 @@ public class PruebasCalculadora {
             verificarVerdadero("La instrucción prohíbe calcular", tutorLocal.construirInstruccionSistema().contains("NO calcules"));
         } catch (CalculadoraException e) {
             fallo("Módulo IA: " + e.getMessage());
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Motor simbólico (árbol de expresión)
+    // ------------------------------------------------------------------
+
+    private static void probarMotorSimbolico() {
+        seccion("Motor simbólico: derivadas");
+        verificarMetodo(MetodoCalculo.D_PRODUCTO, "x^2*sin(x)", "d/dx[x^2·sin(x)] = 2x·sin(x) + x^2·cos(x)");
+        verificarMetodo(MetodoCalculo.D_COCIENTE, "sin(x)/x", "d/dx[sin(x)/x] = (x·cos(x) - sin(x))/x^2");
+        verificarMetodo(MetodoCalculo.D_CADENA, "sin(x^2 + 1)", "d/dx[sin(x^2 + 1)] = 2x·cos(x^2 + 1)");
+        verificarMetodo(MetodoCalculo.D_EXPONENCIAL, "e^(3x)", "d/dx[e^(3x)] = 3e^(3x)");
+        verificarMetodo(MetodoCalculo.D_LOGARITMICA, "ln(x^2 + 1)", "d/dx[ln(x^2 + 1)] = 2x/(x^2 + 1)");
+        verificarMetodo(MetodoCalculo.D_INVERSAS, "arctan(x^2)", "d/dx[arctan(x^2)] = 2x/(x^4 + 1)");
+        verificarMetodo(MetodoCalculo.D_POTENCIA, "x^5 + 1/x^2", "d/dx[x^5 + 1/x^2] = 5x^4 - 2/x^3");
+        verificarMetodo(MetodoCalculo.D_AUTOMATICO, "x^x", "d/dx[x^x] = x^x·(ln(x) + 1)");
+        verificarMetodo(MetodoCalculo.D_IMPLICITA, "x^2 + y^2 = 25", "dy/dx = -x/y");
+        EntradaCalculo orden = entrada("x^4 - 3x^2");
+        orden.setOrden("2");
+        verificarTextoResultado("Derivada de orden 2", MetodoCalculo.D_ORDEN_SUPERIOR, orden, "f'' = 12x^2 - 6");
+        EntradaCalculo parcial = entrada("x^2*y^3");
+        parcial.setVariable(Variable.Y);
+        verificarTextoResultado("Derivada parcial respecto a y", MetodoCalculo.D_PARCIAL, parcial, "∂/∂y[x^2·y^3] = 3x^2·y^2");
+
+        seccion("Motor simbólico: límites (L'Hôpital)");
+        verificarLimite("sin(x)/x", "0", "1");
+        verificarLimite("(1 - cos(x))/x^2", "0", "1/2");
+        verificarLimite("(3x^2 + 1)/(x^2 - 2)", "∞", "3");
+        verificarLimite("e^x/x^2", "∞", "∞");
+        verificarLimite("x*ln(x)", "0", "0");
+        verificarLimite("ln(x)/x", "-∞", "no existe");
+
+        seccion("Motor simbólico: métodos de integración");
+        verificarMetodo(MetodoCalculo.I_SUSTITUCION, "2x*cos(x^2)", "∫ 2x·cos(x^2) dx = sin(x^2) + C");
+        verificarMetodo(MetodoCalculo.I_PARTES, "x*e^x", "∫ x·e^x dx = x·e^x - e^x + C");
+        verificarMetodo(MetodoCalculo.I_PARTES, "ln(x)", "∫ ln(x) dx = x·ln(x) - x + C");
+        verificarMetodo(MetodoCalculo.I_FRACCIONES, "1/(x^2 - 1)", "∫ 1/(x^2 - 1) dx = ln|x - 1|/2 - ln|x + 1|/2 + C");
+        verificarMetodo(MetodoCalculo.I_SUSTITUCION_TRIG, "1/√(4 - x^2)", "∫ 1/√(4 - x^2) dx = arcsin(x/2) + C");
+        verificarMetodo(MetodoCalculo.I_AUTOMATICO, "e^x*sin(x)", "∫ e^x·sin(x) dx = (sin(x)·e^x - cos(x)·e^x)/2 + C");
+        verificarMetodo(MetodoCalculo.I_AUTOMATICO, "x^3/(x^2 + 1)", "∫ x^3/(x^2 + 1) dx = x^2/2 - ln(x^2 + 1)/2 + C");
+        verificarMetodo(MetodoCalculo.I_AUTOMATICO, "sin(x)^2", "∫ sin(x)^2 dx = x/2 - sin(2x)/4 + C");
+        try {
+            CALCULADORA.resolver(MetodoCalculo.I_PARTES, entrada("x^2 + 1"));
+            fallo("Partes sobre x^2 + 1 debía avisar que el método no aplica");
+        } catch (CalculadoraException e) {
+            verificarTipoExcepcion("Partes no aplicable a x^2 + 1", OperacionNoSoportadaException.class, e);
+        }
+        try {
+            CALCULADORA.resolver(MetodoCalculo.I_AUTOMATICO, entrada("e^(x^2)"));
+            fallo("e^(x^2) no tiene antiderivada elemental");
+        } catch (CalculadoraException e) {
+            verificarTipoExcepcion("e^(x^2) sin antiderivada elemental", OperacionNoSoportadaException.class, e);
+        }
+
+        seccion("Motor simbólico: integrales definidas, propiedades e impropias");
+        verificarDefinidaSimbolica(MetodoCalculo.I_TFC, "x^2", "0", "3", null, 9.0);
+        verificarDefinidaSimbolica(MetodoCalculo.I_INVERSION, "x^2", "3", "0", null, -9.0);
+        verificarDefinidaSimbolica(MetodoCalculo.I_LIMITES_IGUALES, "x^3 + 1", "2", "2", null, 0.0);
+        verificarDefinidaSimbolica(MetodoCalculo.I_ADITIVIDAD, "x^2", "0", "3", "1", 9.0);
+        verificarDefinidaSimbolica(MetodoCalculo.I_IMPROPIA, "1/x^2", "1", "∞", null, 1.0);
+        verificarDefinidaSimbolica(MetodoCalculo.I_IMPROPIA, "e^(-x)", "0", "inf", null, 1.0);
+        verificarDefinidaSimbolica(MetodoCalculo.I_IMPROPIA, "1/(1 + x^2)", "-∞", "∞", null, Math.PI);
+        verificarDefinidaSimbolica(MetodoCalculo.I_IMPROPIA, "1/√(x)", "0", "1", null, 2.0);
+        verificarDefinidaSimbolica(MetodoCalculo.I_IMPROPIA, "ln(x)", "0", "1", null, -1.0);
+        verificarDivergente("1/x", "1", "∞");
+        verificarDivergente("1/x^2", "-1", "1");
+    }
+
+    private static void probarListaDeMetodos() {
+        seccion("Lista de métodos: todos los ejemplos se resuelven");
+        MetodoCalculo[] todos = MetodoCalculo.values();
+        for (int i = 0; i < todos.length; i++) {
+            MetodoCalculo m = todos[i];
+            EntradaCalculo e = entrada(m.getEjemplo());
+            e.setLimiteA(m.ejemploA());
+            e.setLimiteB(m.ejemploB());
+            e.setPuntoC("1");
+            e.setOrden("3");
+            e.setDefinida(m.esDefinidaObligatoria());
+            if (m == MetodoCalculo.D_PARCIAL) {
+                e.setVariable(Variable.Y);
+            }
+            try {
+                ResultadoCalculo r = CALCULADORA.resolver(m, e);
+                boolean ok = r.getTextoResultado() != null && !r.getPasosDetallados().isEmpty() && r.getNotas().isEmpty();
+                verificarVerdadero("Ejemplo de " + m.getNombre(), ok);
+            } catch (CalculadoraException ex) {
+                fallo("Ejemplo de " + m.getNombre() + " lanzó: " + ex.getMessage());
+            }
+        }
+    }
+
+    private static EntradaCalculo entrada(String expresion) {
+        EntradaCalculo e = new EntradaCalculo();
+        e.setExpresion(expresion);
+        return e;
+    }
+
+    private static void verificarMetodo(MetodoCalculo metodo, String expresion, String esperado) {
+        verificarTextoResultado(metodo.getNombre() + ": " + expresion, metodo, entrada(expresion), esperado);
+    }
+
+    private static void verificarTextoResultado(String nombre, MetodoCalculo metodo, EntradaCalculo e, String esperado) {
+        try {
+            verificarTexto(nombre, esperado, CALCULADORA.resolver(metodo, e).getTextoResultado());
+        } catch (CalculadoraException ex) {
+            fallo(nombre + " lanzó: " + ex.getMessage());
+        }
+    }
+
+    private static void verificarLimite(String expresion, String punto, String esperado) {
+        EntradaCalculo e = entrada(expresion);
+        e.setPunto(punto);
+        try {
+            String texto = CALCULADORA.resolver(MetodoCalculo.D_LHOPITAL, e).getTextoResultado();
+            String obtenido = texto.substring(texto.lastIndexOf("= ") + 2);
+            verificarTexto("lim x→" + punto + " de " + expresion, esperado, obtenido);
+        } catch (CalculadoraException ex) {
+            fallo("Límite de " + expresion + " lanzó: " + ex.getMessage());
+        }
+    }
+
+    private static void verificarDefinidaSimbolica(MetodoCalculo metodo, String expresion, String a, String b, String c,
+                                                   double esperado) {
+        EntradaCalculo e = entrada(expresion);
+        e.setLimiteA(a);
+        e.setLimiteB(b);
+        e.setDefinida(true);
+        if (c != null) {
+            e.setPuntoC(c);
+        }
+        String nombre = metodo.getNombre() + ": ∫[" + a + ", " + b + "] " + expresion;
+        try {
+            ResultadoCalculo r = CALCULADORA.resolver(metodo, e);
+            if (r.getValorNumerico() == null) {
+                fallo(nombre + " no devolvió valor: " + r.getTextoResultado());
+            } else {
+                verificarNumero(nombre, esperado, r.getValorNumerico().doubleValue());
+            }
+        } catch (CalculadoraException ex) {
+            fallo(nombre + " lanzó: " + ex.getMessage());
+        }
+    }
+
+    private static void verificarDivergente(String expresion, String a, String b) {
+        EntradaCalculo e = entrada(expresion);
+        e.setLimiteA(a);
+        e.setLimiteB(b);
+        e.setDefinida(true);
+        try {
+            ResultadoCalculo r = CALCULADORA.resolver(MetodoCalculo.I_IMPROPIA, e);
+            verificarVerdadero("∫[" + a + ", " + b + "] " + expresion + " diverge", r.getTextoResultado().endsWith("diverge"));
+        } catch (CalculadoraException ex) {
+            fallo("Divergencia de " + expresion + " lanzó: " + ex.getMessage());
         }
     }
 
