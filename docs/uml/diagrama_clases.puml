@@ -1,0 +1,153 @@
+@startuml diagrama_clases
+' Diagrama de clases - Calculadora de Cálculo con Asistente de IA
+' Visualícelo en https://www.plantuml.com/plantuml o con la extensión PlantUML de VS Code / IntelliJ.
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+package calculadora {
+  class Main {
+    +{static} main(args : String[])
+  }
+}
+
+package calculadora.modelo {
+  enum Variable {
+    X
+    Y
+    +getSimbolo() : String
+    +otra() : Variable
+  }
+
+  abstract class Termino {
+    #coeficiente : double
+    #exponenteX : double
+    #exponenteY : double
+    +{abstract} evaluar(x, y) : double
+    +{abstract} derivar(v : Variable) : Termino
+    +{abstract} describirDerivada(v : Variable) : String
+    +{abstract} integrar(v : Variable) : Termino
+    +{abstract} describirIntegral(v : Variable) : String
+    +{abstract} conParteAlgebraica(c, ex, ey) : Termino
+    +{abstract} firmaSemejanza() : String
+    #derivarParteAlgebraica(v) : Termino
+    #integrarParteAlgebraica(v) : Termino
+  }
+
+  class TerminoPolinomico
+  abstract class TerminoFuncional {
+    #variableFuncion : Variable
+    #constanteK : double
+    #{abstract} aplicarFuncion(arg) : double
+    #{abstract} derivarFuncion() : Termino
+    #{abstract} integrarFuncion() : Termino
+  }
+  class TerminoSeno
+  class TerminoCoseno
+  class TerminoExponencial
+  class TerminoLogaritmico {
+    -valorAbsoluto : boolean
+  }
+
+  class Expresion {
+    -terminos : List<Termino>
+    +derivar(v) : Expresion
+    +integrar(v) : Expresion
+    +simplificar() : Expresion
+    +evaluar(x, y) : double
+  }
+
+  class ResultadoCalculo {
+    -tipo : TipoOperacion
+    -pasos : List<String>
+    -textoResultado : String
+    -valorNumerico : Double
+    +agregarPaso(texto)
+    +generarInformePasos() : String
+  }
+
+  class Calculadora <<Fachada>> {
+    +interpretar(texto) : Expresion
+    +derivar(texto, v) : ResultadoCalculo
+    +integrarIndefinida(texto, v) : ResultadoCalculo
+    +integrarDefinida(texto, v, a, b, otra) : ResultadoCalculo
+    +evaluar(texto, x, y) : ResultadoCalculo
+  }
+}
+
+package calculadora.analisis {
+  class AnalizadorExpresion {
+    -texto : String
+    -posicion : int
+    +analizar(texto) : Expresion
+  }
+}
+
+package calculadora.excepciones {
+  class CalculadoraException
+  class ExpresionInvalidaException
+  class OperacionNoSoportadaException
+  class DominioInvalidoException
+  class IAException
+}
+
+package calculadora.util {
+  class FormatoNumeros <<utilidad>>
+  class JsonSencillo <<utilidad>>
+}
+
+package calculadora.ia {
+  interface ProveedorIA {
+    +getNombre() : String
+    +generarRespuesta(sistema, mensaje) : String
+  }
+  class ProveedorAnthropic
+  class ProveedorCompatibleOpenAI
+  class ConfiguracionIA
+  class ExplicadorLocal
+  class TutorIA {
+    +explicar(resultado, pregunta) : String
+  }
+}
+
+package calculadora.vista {
+  class VentanaCalculadora
+  class PanelGrafico2D
+}
+
+package calculadora.pruebas {
+  class PruebasCalculadora
+}
+
+Termino <|-- TerminoPolinomico
+Termino <|-- TerminoFuncional
+TerminoFuncional <|-- TerminoSeno
+TerminoFuncional <|-- TerminoCoseno
+TerminoFuncional <|-- TerminoExponencial
+TerminoFuncional <|-- TerminoLogaritmico
+Expresion o-- "0..*" Termino
+TerminoFuncional --> Variable
+ResultadoCalculo --> Expresion
+Calculadora --> AnalizadorExpresion
+Calculadora ..> ResultadoCalculo : crea
+AnalizadorExpresion ..> Expresion : crea
+
+CalculadoraException <|-- ExpresionInvalidaException
+CalculadoraException <|-- OperacionNoSoportadaException
+CalculadoraException <|-- DominioInvalidoException
+CalculadoraException <|-- IAException
+
+ProveedorIA <|.. ProveedorAnthropic
+ProveedorIA <|.. ProveedorCompatibleOpenAI
+TutorIA --> ProveedorIA
+TutorIA --> ExplicadorLocal
+TutorIA --> ConfiguracionIA
+ProveedorAnthropic ..> JsonSencillo
+ProveedorCompatibleOpenAI ..> JsonSencillo
+
+Main ..> VentanaCalculadora
+VentanaCalculadora --> Calculadora
+VentanaCalculadora --> TutorIA
+VentanaCalculadora *-- PanelGrafico2D
+PruebasCalculadora ..> Calculadora
+@enduml

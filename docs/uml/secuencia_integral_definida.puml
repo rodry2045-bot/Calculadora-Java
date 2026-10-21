@@ -1,0 +1,45 @@
+@startuml secuencia_integral_definida
+' Secuencia: el usuario calcula una integral definida y pide la explicación a la IA
+actor Estudiante
+participant VentanaCalculadora as V
+participant Calculadora as C
+participant AnalizadorExpresion as A
+participant Expresion as E
+participant Termino as T
+participant PanelGrafico2D as G
+participant "SwingWorker" as W
+participant TutorIA as IA
+participant ProveedorIA as P
+participant ExplicadorLocal as L
+
+Estudiante -> V : escribe f, elige "Integral definida", a, b\ny pulsa Calcular
+V -> C : integrarDefinida(texto, v, a, b, otra)
+C -> A : analizar(texto)
+A --> C : Expresion
+C -> C : validarDominioIntegral()
+note right: DominioInvalidoException\nsi 0 ∈ [a,b] con n < 0
+loop por cada término
+  C -> T : integrar(v)
+  C -> T : describirIntegral(v)
+  C -> C : agregarPaso(...)
+end
+C -> E : integrar(v) → F(v)
+C -> E : evaluarEn(v, b) → F(b)
+C -> E : evaluarEn(v, a) → F(a)
+C --> V : ResultadoCalculo (R = F(b) - F(a))
+V -> G : graficar(f) + sombrearArea(a, b)
+
+Estudiante -> V : pulsa "Explicar con IA"
+V -> W : execute()
+W -> IA : explicar(resultado, pregunta)
+alt hay proveedor y red
+  IA -> P : generarRespuesta(instrucción, pasos)
+  P --> IA : texto
+else sin clave / sin red / error
+  IA -> L : explicar(resultado, pregunta)
+  L --> IA : texto local
+end
+IA --> W : explicación (≤ 250 palabras)
+W --> V : done() en el hilo de Swing
+V --> Estudiante : muestra la explicación
+@enduml
