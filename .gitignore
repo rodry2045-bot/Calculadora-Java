@@ -1,0 +1,17 @@
+# Archivos generados por la compilación
+build/
+dist/
+*.class
+*.jar
+
+# Configuración con claves privadas: NUNCA se sube al repositorio
+config.properties
+
+# Archivos del sistema operativo y de los editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.iml
+.vscode/
+out/

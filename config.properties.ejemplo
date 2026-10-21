@@ -1,0 +1,32 @@
+# ======================================================================
+# Configuración del Asistente de IA - Calculadora de Cálculo
+# ======================================================================
+# 1. Copie este archivo con el nombre: config.properties
+# 2. Complete los valores. El archivo config.properties está en .gitignore,
+#    por lo que su clave NUNCA se subirá al repositorio.
+# 3. También puede definir la clave con la variable de entorno
+#    CALCULADORA_IA_API_KEY (tiene prioridad sobre este archivo).
+#
+# Si no hay clave o no hay red, la aplicación usa automáticamente el
+# Explicador Local (sin Internet).
+# ======================================================================
+
+# Proveedor: anthropic | openai | ollama | local
+proveedor=local
+
+# Clave de API (déjela vacía para ollama o local)
+api_key=
+
+# Modelo a utilizar (si se deja vacío se usa el valor por defecto del proveedor)
+#   anthropic -> claude-haiku-5-5
+#   openai    -> gpt-4o-mini
+#   ollama    -> llama3.2
+modelo=
+
+# URL base (solo para openai u ollama; vacío = valor por defecto)
+#   openai -> https://api.openai.com/v1
+#   ollama -> http://localhost:11434/v1
+url_base=
+
+# Tiempo máximo de espera de la respuesta, en segundos
+tiempo_espera_segundos=30
