@@ -2,17 +2,28 @@
 REM =====================================================================
 REM  build.bat - Compila el proyecto y genera dist\CalculadoraCalculo.jar
 REM  Uso (PowerShell o CMD, desde la carpeta del proyecto):  .\build.bat
-REM  Requisitos: JDK 11 o superior (javac y jar en el PATH)
+REM  Requisitos: JDK 11 o superior (en el PATH o en %USERPROFILE%\.jdks)
 REM =====================================================================
 setlocal
 chcp 65001 >nul
 cd /d "%~dp0"
 
+REM Si javac no esta en el PATH, se busca un JDK descargado por IntelliJ
+REM en %USERPROFILE%\.jdks (se usa el de version mas reciente).
 where javac >nul 2>nul
-if errorlevel 1 (
-    echo [ERROR] No se encontro javac. Instale un JDK 11 o superior y agreguelo al PATH.
-    exit /b 1
-)
+if not errorlevel 1 goto compilar
+set "JDK_BIN="
+for /d %%D in ("%USERPROFILE%\.jdks\*") do if exist "%%D\bin\javac.exe" set "JDK_BIN=%%D\bin"
+if not defined JDK_BIN goto sinjdk
+set "PATH=%JDK_BIN%;%PATH%"
+echo Usando el JDK encontrado en: %JDK_BIN%
+goto compilar
+
+:sinjdk
+echo [ERROR] No se encontro javac. Instale un JDK 11 o superior y agreguelo al PATH.
+exit /b 1
+
+:compilar
 
 echo [1/3] Limpiando la carpeta build...
 if exist build rmdir /s /q build
