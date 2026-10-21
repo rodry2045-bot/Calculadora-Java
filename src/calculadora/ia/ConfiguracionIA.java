@@ -37,19 +37,19 @@ public class ConfiguracionIA {
     // ==================================================================
 
     /** Proveedor: "anthropic" (Claude), "openai", "ollama" (local, gratis) o "local" (sin IA). */
-    public static final String PROVEEDOR = "anthropic";
+    public static final String PROVEEDOR = "ollama";
 
     /** Clave de API. Péguela entre las comillas. Déjela vacía para usar el Explicador Local. */
     public static final String CLAVE_API = "";
 
     /** Modelo. Vacío = valor por defecto (claude-haiku-5-5, gpt-4o-mini o llama3.2). */
-    public static final String MODELO = "";
+    public static final String MODELO = "llama3:latest";
 
     /** URL base. Vacía = valor por defecto del proveedor. */
     public static final String URL_BASE = "";
 
     /** Tiempo máximo de espera de la respuesta, en segundos. */
-    public static final int TIEMPO_ESPERA_SEGUNDOS = 30;
+    public static final int TIEMPO_ESPERA_SEGUNDOS = 120;
 
     // ==================================================================
 
