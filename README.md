@@ -1,6 +1,6 @@
 # Calculadora de Cálculo con Asistente de IA y Graficador Integral de Funciones
 
-Proyecto universitario de **Programación II – Ingeniería en Sistemas**.
+Proyecto final de **Cálculo II y Programación II** (UMG) – Ingeniería en Sistemas.
 Aplicación de escritorio en **Java Swing** que deriva, integra y calcula límites de funciones de una o dos variables, resuelve aplicaciones (recta tangente, máximos y mínimos, área entre curvas), explica cada regla aplicada paso a paso, grafica la función con el área sombreada y cuenta con un **asistente de IA** que explica (sin calcular) el procedimiento.
 
 ![Gráfica de una integral definida](docs/capturas/grafica_integral_definida.png)
