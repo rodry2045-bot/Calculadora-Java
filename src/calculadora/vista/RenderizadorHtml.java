@@ -96,7 +96,7 @@ public final class RenderizadorHtml {
                 .append("<tr><td bgcolor='").append(Tema.hex(Tema.EXITO_SUAVE)).append("'>")
                 .append("<font color='").append(Tema.hex(Tema.EXITO)).append("'><b>RESULTADO</b></font><br>")
                 .append("<span style='font-family:").append(Tema.familiaMono()).append("; font-size:15pt; color:")
-                .append(Tema.hex(Tema.TEXTO)).append("'>").append(escapar(resultado.getTextoResultado()))
+                .append(Tema.hex(Tema.TEXTO)).append("'>").append(escapar(resultado.getTextoResultado()).replace("\n", "<br>"))
                 .append("</span></td></tr></table>");
 
         html.append("</body></html>");
@@ -138,7 +138,8 @@ public final class RenderizadorHtml {
                     .append(escapar(paso.getDetalle())).append("</span>");
         }
         if (!paso.getResultado().isEmpty()) {
-            fila.append("<br><span style='color:").append(Tema.hex(Tema.TEXTO_TENUE)).append("'>&rArr; </span>")
+            fila.append("<br><span style='font-family:").append(Tema.familiaMono()).append("; color:")
+                    .append(Tema.hex(Tema.TEXTO_TENUE)).append("'>→ </span>")
                     .append("<span style='font-family:").append(Tema.familiaMono()).append("; color:")
                     .append(Tema.hex(Tema.PRIMARIO)).append("; font-size:13pt'><b>").append(escapar(paso.getResultado()))
                     .append("</b></span>");

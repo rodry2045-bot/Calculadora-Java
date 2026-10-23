@@ -148,6 +148,36 @@ public final class FormatoNumeros {
                 return texto;
             }
         }
+        // Múltiplos sencillos de raíces cuadradas: √2, √3/3, 2√5...
+        int[] radicandos = {2, 3, 5, 6, 7, 10};
+        for (int i = 0; i < radicandos.length; i++) {
+            double cociente = valor / Math.sqrt(radicandos[i]);
+            for (int d = 1; d <= 12; d++) {
+                double n = Math.rint(cociente * d);
+                if (n != 0 && Math.abs(n) <= 24 && Math.abs(n / d - cociente) < 1e-9) {
+                    long numerador = (long) n;
+                    String texto = (numerador == 1 ? "" : (numerador == -1 ? "-" : String.valueOf(numerador)))
+                            + "√" + radicandos[i];
+                    return d > 1 ? texto + "/" + d : texto;
+                }
+            }
+        }
+        // Múltiplos sencillos del número e: e, 2e, e/2, -e...
+        double multiploE = valor / Math.E;
+        for (int d = 1; d <= 4; d++) {
+            double n = Math.rint(multiploE * d);
+            if (n != 0 && Math.abs(n) <= 12 && Math.abs(n / d - multiploE) < 1e-9) {
+                long numerador = (long) n;
+                String texto = numerador == 1 ? "e" : (numerador == -1 ? "-e" : numerador + "e");
+                return d > 1 ? texto + "/" + d : texto;
+            }
+        }
+        // n/e: por ejemplo 1/e = 0.367879
+        double porE = valor * Math.E;
+        if (esEntero(porE) && Math.abs(porE) >= 1 && Math.abs(porE) <= 12) {
+            long n = Math.round(porE);
+            return n + "/e";
+        }
         return formatearDecimal(valor, 6);
     }
 

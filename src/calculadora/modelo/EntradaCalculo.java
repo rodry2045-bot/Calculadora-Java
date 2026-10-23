@@ -6,6 +6,9 @@ package calculadora.modelo;
  */
 public class EntradaCalculo {
 
+    /** Segunda función g(x), solo para el área entre curvas. */
+    private String funcionG = "";
+
     private String expresion = "";
     private Variable variable = Variable.X;
     private String orden = "2";
@@ -83,6 +86,16 @@ public class EntradaCalculo {
     /** @param puntoC punto intermedio c */
     public void setPuntoC(String puntoC) {
         this.puntoC = puntoC;
+    }
+
+    /** @return segunda función g(x) (área entre curvas) */
+    public String getFuncionG() {
+        return funcionG;
+    }
+
+    /** @param funcionG segunda función g(x) (área entre curvas) */
+    public void setFuncionG(String funcionG) {
+        this.funcionG = funcionG;
     }
 
     /** @return true si la integral es definida */

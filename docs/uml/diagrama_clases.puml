@@ -15,71 +15,90 @@ package calculadora.modelo {
   enum Variable {
     X
     Y
+    U
+    THETA
     +getSimbolo() : String
     +otra() : Variable
   }
-
-  abstract class Termino {
-    #coeficiente : double
-    #exponenteX : double
-    #exponenteY : double
-    +{abstract} evaluar(x, y) : double
-    +{abstract} derivar(v : Variable) : Termino
-    +{abstract} describirDerivada(v : Variable) : String
-    +{abstract} integrar(v : Variable) : Termino
-    +{abstract} describirIntegral(v : Variable) : String
-    +{abstract} conParteAlgebraica(c, ex, ey) : Termino
-    +{abstract} firmaSemejanza() : String
-    #derivarParteAlgebraica(v) : Termino
-    #integrarParteAlgebraica(v) : Termino
+  interface Graficable {
+    +evaluarEn(v, valor, otra) : double
+    +dependeDe(v) : boolean
   }
-
-  class TerminoPolinomico
-  abstract class TerminoFuncional {
-    #variableFuncion : Variable
-    #constanteK : double
-    #{abstract} aplicarFuncion(arg) : double
-    #{abstract} derivarFuncion() : Termino
-    #{abstract} integrarFuncion() : Termino
+  enum MetodoCalculo {
+    +getCategoria() : Categoria
+    +getOperacion() : Operacion
+    +getReglas() : ReglaCalculo[]
   }
-  class TerminoSeno
-  class TerminoCoseno
-  class TerminoExponencial
-  class TerminoLogaritmico {
-    -valorAbsoluto : boolean
+  class EntradaCalculo {
+    -expresion : String
+    -funcionG : String
+    -variable : Variable
+    -limiteA : String
+    -limiteB : String
+    -punto : String
   }
-
-  class Expresion {
-    -terminos : List<Termino>
-    +derivar(v) : Expresion
-    +integrar(v) : Expresion
-    +simplificar() : Expresion
-    +evaluar(x, y) : double
-  }
-
   class ResultadoCalculo {
     -tipo : TipoOperacion
-    -pasos : List<String>
+    -pasosDetallados : List<PasoDetallado>
+    -notas : List<String>
     -textoResultado : String
     -valorNumerico : Double
-    +agregarPaso(texto)
-    +generarInformePasos() : String
+    -puntosMarcados : List<double[]>
   }
-
+  class PasoDetallado
+  enum ReglaCalculo
   class Calculadora <<Fachada>> {
-    +interpretar(texto) : Expresion
-    +derivar(texto, v) : ResultadoCalculo
-    +integrarIndefinida(texto, v) : ResultadoCalculo
-    +integrarDefinida(texto, v, a, b, otra) : ResultadoCalculo
-    +evaluar(texto, x, y) : ResultadoCalculo
+    +resolver(metodo, entrada) : ResultadoCalculo
+    +interpretar(texto) : Nodo
   }
 }
 
-package calculadora.analisis {
-  class AnalizadorExpresion {
-    -texto : String
-    -posicion : int
-    +analizar(texto) : Expresion
+package calculadora.simbolico {
+  abstract class Nodo <<Composite>> {
+    +{abstract} evaluar(x, y) : double
+    +{abstract} clave() : String
+    +{abstract} reemplazar(objetivo, nuevo) : Nodo
+  }
+  class NodoConstante
+  class NodoVariable
+  abstract class NodoBinario
+  class NodoSuma
+  class NodoResta
+  class NodoProducto
+  class NodoCociente
+  class NodoPotencia
+  class NodoNegativo
+  class NodoFuncion
+  enum TipoFuncion
+
+  class AnalizadorSimbolico {
+    +analizar(texto) : Nodo
+    +getAvisos() : List<String>
+    +analizarLimite(texto) : double
+  }
+  class Sugeridor <<utilidad>> {
+    +{static} sugerir(texto) : String
+  }
+  class Simplificador <<utilidad>>
+  class Embellecedor <<utilidad>>
+  class Derivador {
+    +derivar(f, v) : Nodo
+  }
+  class Integrador {
+    +integrar(f, v, tecnica) : Nodo
+    +{static} verificar(F, f, v) : boolean
+  }
+  class IntegradorRacional
+  class IntegradorTrigonometrico
+  class IntegracionNumerica <<Gauss-Kronrod>> {
+    +{static} integrar(f, v, a, b, otra) : Resultado
+  }
+  class Limites <<utilidad>>
+  class BuscadorRaices <<utilidad>>
+  class Polinomio
+  class RegistroPasos
+  class MotorSimbolico <<Fachada>> {
+    +resolver(metodo, entrada) : ResultadoCalculo
   }
 }
 
@@ -112,25 +131,50 @@ package calculadora.ia {
 
 package calculadora.vista {
   class VentanaCalculadora
+  class PanelMetodos
+  class VistaFormula
   class PanelGrafico2D
+  class Historial
+  class ExportadorProcedimiento
+  class RenderizadorHtml
 }
 
 package calculadora.pruebas {
   class PruebasCalculadora
 }
 
-Termino <|-- TerminoPolinomico
-Termino <|-- TerminoFuncional
-TerminoFuncional <|-- TerminoSeno
-TerminoFuncional <|-- TerminoCoseno
-TerminoFuncional <|-- TerminoExponencial
-TerminoFuncional <|-- TerminoLogaritmico
-Expresion o-- "0..*" Termino
-TerminoFuncional --> Variable
-ResultadoCalculo --> Expresion
-Calculadora --> AnalizadorExpresion
-Calculadora ..> ResultadoCalculo : crea
-AnalizadorExpresion ..> Expresion : crea
+Graficable <|.. Nodo
+Nodo <|-- NodoConstante
+Nodo <|-- NodoVariable
+Nodo <|-- NodoBinario
+Nodo <|-- NodoNegativo
+Nodo <|-- NodoFuncion
+NodoBinario <|-- NodoSuma
+NodoBinario <|-- NodoResta
+NodoBinario <|-- NodoProducto
+NodoBinario <|-- NodoCociente
+NodoBinario <|-- NodoPotencia
+NodoFuncion --> TipoFuncion
+
+Calculadora --> MotorSimbolico
+MotorSimbolico --> AnalizadorSimbolico
+MotorSimbolico ..> Derivador
+MotorSimbolico ..> Integrador
+MotorSimbolico ..> IntegracionNumerica
+MotorSimbolico ..> Limites
+MotorSimbolico ..> BuscadorRaices
+MotorSimbolico ..> Embellecedor
+MotorSimbolico ..> ResultadoCalculo : crea
+Integrador ..> IntegradorRacional
+Integrador ..> IntegradorTrigonometrico
+Integrador ..> Polinomio
+Derivador --> RegistroPasos
+Integrador --> RegistroPasos
+AnalizadorSimbolico ..> Nodo : crea
+Sugeridor ..> AnalizadorSimbolico
+ResultadoCalculo o-- "0..*" PasoDetallado
+PasoDetallado --> ReglaCalculo
+MetodoCalculo --> ReglaCalculo
 
 CalculadoraException <|-- ExpresionInvalidaException
 CalculadoraException <|-- OperacionNoSoportadaException
@@ -148,6 +192,12 @@ ProveedorCompatibleOpenAI ..> JsonSencillo
 Main ..> VentanaCalculadora
 VentanaCalculadora --> Calculadora
 VentanaCalculadora --> TutorIA
+VentanaCalculadora *-- PanelMetodos
+VentanaCalculadora *-- VistaFormula
 VentanaCalculadora *-- PanelGrafico2D
+VentanaCalculadora --> Historial
+VentanaCalculadora ..> ExportadorProcedimiento
+VentanaCalculadora ..> Sugeridor
+VentanaCalculadora ..> RenderizadorHtml
 PruebasCalculadora ..> Calculadora
 @enduml

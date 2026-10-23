@@ -12,34 +12,37 @@ import java.util.Properties;
 /**
  * Configuración del Asistente de IA.
  * <p>
- * <b>La IA se configura AQUÍ, en el código</b>: edite las constantes de la
- * sección "CONFIGURACIÓN EN EL CÓDIGO" y vuelva a compilar con build.bat.
+ * <b>Forma recomendada:</b> copiar {@code config.properties.ejemplo} con el
+ * nombre {@code config.properties} y completar los valores. Ese archivo está
+ * en .gitignore, así que la clave de API nunca se sube al repositorio.
  * </p>
  * <p>
  * Orden de prioridad:
  * </p>
  * <ol>
- *   <li>Constantes de esta clase (si {@link #CLAVE_API} no está vacía, o si el
- *       proveedor es "ollama", que no necesita clave).</li>
- *   <li>Variable de entorno {@code CALCULADORA_IA_API_KEY}.</li>
- *   <li>Archivo {@code config.properties} (opcional).</li>
+ *   <li>Archivo {@code config.properties}, si existe (más la variable de
+ *       entorno {@code CALCULADORA_IA_API_KEY}, que tiene prioridad sobre la
+ *       clave del archivo).</li>
+ *   <li>Constantes de esta clase. Úselas solo para proveedores SIN clave
+ *       (Ollama o "local"): una clave escrita en el código termina subida a
+ *       GitHub y cualquiera podría usarla.</li>
+ *   <li>Solo la variable de entorno {@code CALCULADORA_IA_API_KEY}.</li>
  * </ol>
  * <p>
- * IMPORTANTE: si escribe su clave en el código, NO suba este archivo a un
- * repositorio público (GitHub), porque cualquiera podría usar su clave.
  * Si no hay clave o no hay Internet, se usa el Explicador Local.
  * </p>
  */
 public class ConfiguracionIA {
 
     // ==================================================================
-    // CONFIGURACIÓN EN EL CÓDIGO (edite estos valores)
+    // CONFIGURACIÓN EN EL CÓDIGO (solo para proveedores sin clave).
+    // Para Claude u OpenAI use config.properties: NO escriba la clave aquí.
     // ==================================================================
 
     /** Proveedor: "anthropic" (Claude), "openai", "ollama" (local, gratis) o "local" (sin IA). */
     public static final String PROVEEDOR = "ollama";
 
-    /** Clave de API. Péguela entre las comillas. Déjela vacía para usar el Explicador Local. */
+    /** Clave de API. Déjela VACÍA: la clave va en config.properties o en CALCULADORA_IA_API_KEY. */
     public static final String CLAVE_API = "";
 
     /** Modelo. Vacío = valor por defecto (claude-haiku-5-5, gpt-4o-mini o llama3.2). */
@@ -104,12 +107,13 @@ public class ConfiguracionIA {
      * @return configuración cargada (nunca null)
      */
     public static ConfiguracionIA cargar() {
-        // 1) Configuración escrita en el código
+        // 1) Si existe config.properties, manda el archivo; si no, la configuración del código
         boolean codigoCompleto = !CLAVE_API.trim().isEmpty() || PROVEEDOR_OLLAMA.equalsIgnoreCase(PROVEEDOR.trim())
                 || PROVEEDOR_LOCAL.equalsIgnoreCase(PROVEEDOR.trim());
         String claveEntornoPrevia = System.getenv(VARIABLE_ENTORNO_CLAVE);
         boolean hayEntorno = claveEntornoPrevia != null && !claveEntornoPrevia.trim().isEmpty();
-        if (codigoCompleto && !(PROVEEDOR_LOCAL.equalsIgnoreCase(PROVEEDOR.trim()) && hayEntorno)) {
+        boolean hayArchivo = new File(NOMBRE_ARCHIVO).isFile();
+        if (codigoCompleto && !hayArchivo && !(PROVEEDOR_LOCAL.equalsIgnoreCase(PROVEEDOR.trim()) && hayEntorno)) {
             ConfiguracionIA desdeCodigo = new ConfiguracionIA(PROVEEDOR, CLAVE_API, MODELO, URL_BASE,
                     TIEMPO_ESPERA_SEGUNDOS);
             desdeCodigo.origen = "código (calculadora.ia.ConfiguracionIA)";

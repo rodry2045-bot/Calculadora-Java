@@ -3,30 +3,35 @@
 actor Estudiante
 participant VentanaCalculadora as V
 participant Calculadora as C
-participant AnalizadorExpresion as A
-participant Expresion as E
-participant Termino as T
+participant MotorSimbolico as M
+participant AnalizadorSimbolico as A
+participant Integrador as I
+participant IntegracionNumerica as N
 participant PanelGrafico2D as G
 participant "SwingWorker" as W
 participant TutorIA as IA
 participant ProveedorIA as P
 participant ExplicadorLocal as L
 
-Estudiante -> V : escribe f, elige "Integral definida", a, b\ny pulsa Calcular
-V -> C : integrarDefinida(texto, v, a, b, otra)
-C -> A : analizar(texto)
-A --> C : Expresion
-C -> C : validarDominioIntegral()
-note right: DominioInvalidoException\nsi 0 ∈ [a,b] con n < 0
-loop por cada término
-  C -> T : integrar(v)
-  C -> T : describirIntegral(v)
-  C -> C : agregarPaso(...)
+Estudiante -> V : escribe f (la vista previa\nmuestra cómo se entendió)
+Estudiante -> V : elige "Definida [a, b]", a, b\ny pulsa Calcular
+V -> C : resolver(método, entrada)
+C -> M : resolver(método, entrada)
+M -> A : analizar(texto)
+A --> M : árbol (Nodo) + avisos de lectura
+M -> I : integrar(f, v, técnica)
+alt se encuentra la antiderivada
+  I -> I : verificar(F, f): d/dx F = f
+  I --> M : F
+  M -> M : F(b) - F(a) (con límites laterales\nsi es impropia)
+  M -> N : integrar(f, a, b)
+  N --> M : comprobación numérica
+else no tiene antiderivada elemental
+  I --> M : OperacionNoSoportadaException
+  M -> N : integrar(f, a, b) (Gauss-Kronrod)
+  N --> M : valor aproximado
 end
-C -> E : integrar(v) → F(v)
-C -> E : evaluarEn(v, b) → F(b)
-C -> E : evaluarEn(v, a) → F(a)
-C --> V : ResultadoCalculo (R = F(b) - F(a))
+M --> V : ResultadoCalculo (pasos, notas, resultado)
 V -> G : graficar(f) + sombrearArea(a, b)
 
 Estudiante -> V : pulsa "Explicar con IA"

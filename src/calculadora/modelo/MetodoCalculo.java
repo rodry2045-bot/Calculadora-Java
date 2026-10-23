@@ -124,14 +124,34 @@ public enum MetodoCalculo {
     I_IMPROPIA(Categoria.INTEGRALES, Operacion.INTEGRAL_DEFINIDA, "Integrales impropias (límites ∞)",
             "∫[a,∞) f dx = lim(t→∞) ∫[a,t] f dx",
             "Límites infinitos o funciones que se van a infinito en el intervalo. Use ∞ o -∞ del teclado.", "1/x^2",
-            TecnicaIntegracion.AUTOMATICO, ReglaCalculo.IMPROPIA);
+            TecnicaIntegracion.AUTOMATICO, ReglaCalculo.IMPROPIA),
+
+    // ================================ APLICACIONES ================================
+    A_LIMITE(Categoria.APLICACIONES, Operacion.LIMITE, "Límite de una función", "lim(x→a) f(x)",
+            "Primero se sustituye directamente; si aparece 0/0 o ∞/∞ se usa L'Hôpital. Para límites laterales "
+                    + "escriba el punto con + o - al final, por ejemplo 0+ o 0-.", "(x^2 - 1)/(x - 1)", null),
+    A_TANGENTE(Categoria.APLICACIONES, Operacion.TANGENTE, "Recta tangente y normal",
+            "y = f(a) + f'(a)·(x - a)",
+            "La pendiente de la tangente es la derivada en el punto. La recta normal es perpendicular: su pendiente "
+                    + "es -1/f'(a).", "x^2 - 2x + 3", null, ReglaCalculo.RECTA_TANGENTE),
+    A_EXTREMOS(Categoria.APLICACIONES, Operacion.EXTREMOS, "Máximos, mínimos e inflexión",
+            "f'(c) = 0  →  f''(c) > 0 mínimo,  f''(c) < 0 máximo",
+            "Busca los puntos críticos en [a, b], los clasifica con la segunda derivada y encuentra los puntos de "
+                    + "inflexión y los extremos absolutos del intervalo.", "x^3 - 3x", null,
+            ReglaCalculo.PUNTOS_CRITICOS, ReglaCalculo.CRITERIO_SEGUNDA_DERIVADA),
+    A_AREA_CURVAS(Categoria.APLICACIONES, Operacion.AREA_CURVAS, "Área entre dos curvas",
+            "A = ∫[a,b] |f(x) - g(x)| dx",
+            "Se resta la curva de abajo a la de arriba en cada tramo. Si deja a y b vacíos se usan los puntos donde "
+                    + "se cortan las curvas.", "x", null, ReglaCalculo.AREA_ENTRE_CURVAS);
 
     /** Grupo de la lista. */
     public enum Categoria {
         /** Métodos de derivación (y límites). */
         DERIVADAS,
         /** Métodos y propiedades de integración. */
-        INTEGRALES
+        INTEGRALES,
+        /** Límites, recta tangente, extremos y área entre curvas. */
+        APLICACIONES
     }
 
     /** Operación que realiza el método. */
@@ -153,7 +173,13 @@ public enum MetodoCalculo {
         /** Propiedad de inversión de límites. */
         INVERSION,
         /** Propiedad de aditividad. */
-        ADITIVIDAD
+        ADITIVIDAD,
+        /** Recta tangente y normal. */
+        TANGENTE,
+        /** Máximos, mínimos e inflexión. */
+        EXTREMOS,
+        /** Área entre dos curvas. */
+        AREA_CURVAS
     }
 
     private final Categoria categoria;
@@ -219,7 +245,34 @@ public enum MetodoCalculo {
 
     /** @return true si se puede elegir la variable x/y */
     public boolean usaVariable() {
-        return operacion == Operacion.DERIVADA || operacion == Operacion.ORDEN_SUPERIOR;
+        return operacion == Operacion.DERIVADA || operacion == Operacion.ORDEN_SUPERIOR
+                || categoria == Categoria.INTEGRALES;
+    }
+
+    /** @return true si pide la segunda función g(x) */
+    public boolean usaFuncionG() {
+        return operacion == Operacion.AREA_CURVAS;
+    }
+
+    /** @return true si pide el intervalo [a, b] (aunque no sea una integral) */
+    public boolean usaIntervalo() {
+        return operacion == Operacion.EXTREMOS || operacion == Operacion.AREA_CURVAS;
+    }
+
+    /** @return ejemplo de la segunda función g(x) */
+    public String ejemploG() {
+        return this == A_AREA_CURVAS ? "x^2" : "";
+    }
+
+    /** @return ejemplo del punto (límite o recta tangente) */
+    public String ejemploPunto() {
+        if (this == A_LIMITE) {
+            return "1";
+        }
+        if (this == A_TANGENTE) {
+            return "2";
+        }
+        return "0";
     }
 
     /** @return true si pide el orden n */
@@ -229,7 +282,7 @@ public enum MetodoCalculo {
 
     /** @return true si pide el punto al que tiende x */
     public boolean usaPunto() {
-        return operacion == Operacion.LIMITE;
+        return operacion == Operacion.LIMITE || operacion == Operacion.TANGENTE;
     }
 
     /** @return true si el usuario elige entre integral indefinida y definida */
@@ -250,6 +303,12 @@ public enum MetodoCalculo {
 
     /** @return límite inferior del ejemplo */
     public String ejemploA() {
+        if (this == A_AREA_CURVAS) {
+            return "";
+        }
+        if (this == A_EXTREMOS) {
+            return "-3";
+        }
         if (this == I_IMPROPIA) {
             return "1";
         }
@@ -264,6 +323,12 @@ public enum MetodoCalculo {
 
     /** @return límite superior del ejemplo */
     public String ejemploB() {
+        if (this == A_AREA_CURVAS) {
+            return "";
+        }
+        if (this == A_EXTREMOS) {
+            return "3";
+        }
         if (this == I_IMPROPIA) {
             return "∞";
         }

@@ -21,6 +21,8 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Panel que dibuja funciones en un plano cartesiano usando Graphics2D.
@@ -70,6 +72,9 @@ public class PanelGrafico2D extends JPanel {
     private Double limiteB;
     private Double puntoX;
     private Double puntoY;
+    private transient Graficable curvaBaseArea;
+    private final List<double[]> puntosMarcados = new ArrayList<double[]>();
+    private final List<String> etiquetasPuntos = new ArrayList<String>();
 
     // Estado de la vista
     private double centroX;
@@ -116,6 +121,9 @@ public class PanelGrafico2D extends JPanel {
         this.limiteB = null;
         this.puntoX = null;
         this.puntoY = null;
+        this.curvaBaseArea = null;
+        this.puntosMarcados.clear();
+        this.etiquetasPuntos.clear();
         // Cada gráfica nueva comienza con la vista inicial
         this.centroX = 0.0;
         this.centroY = 0.0;
@@ -138,6 +146,9 @@ public class PanelGrafico2D extends JPanel {
         this.etiquetaImplicita = etiqueta;
         this.etiquetaFuncion = etiqueta;
         this.variable = Variable.X;
+        this.curvaBaseArea = null;
+        this.puntosMarcados.clear();
+        this.etiquetasPuntos.clear();
         this.limiteA = null;
         this.limiteB = null;
         this.puntoX = null;
@@ -174,8 +185,67 @@ public class PanelGrafico2D extends JPanel {
         repaint();
     }
 
+    /**
+     * Sombrea el área entre la función y esta curva (en vez de hasta el eje x).
+     * Se usa junto con {@link #sombrearArea(double, double)}.
+     *
+     * @param curva curva inferior o superior del área
+     */
+    public void setCurvaBaseArea(Graficable curva) {
+        this.curvaBaseArea = curva;
+        repaint();
+    }
+
+    /**
+     * Marca varios puntos rellenos con su etiqueta (máximos, mínimos, inflexión...).
+     *
+     * @param puntos    pares {x, y}
+     * @param etiquetas texto de cada punto
+     */
+    public void marcarPuntos(List<double[]> puntos, List<String> etiquetas) {
+        this.puntosMarcados.clear();
+        this.etiquetasPuntos.clear();
+        this.puntosMarcados.addAll(puntos);
+        this.etiquetasPuntos.addAll(etiquetas);
+        repaint();
+    }
+
+    /**
+     * Ajusta el zoom para que se vea el intervalo [a, b].
+     *
+     * @param a extremo izquierdo
+     * @param b extremo derecho
+     */
+    public void enfocarIntervalo(double a, double b) {
+        double inferior = Math.min(a, b);
+        double superior = Math.max(a, b);
+        double ancho = Math.max(getWidth(), 600);
+        this.escala = Math.max(ESCALA_MINIMA, Math.min(ESCALA_MAXIMA, (ancho * 0.75) / Math.max(superior - inferior, 0.5)));
+        this.centroX = (inferior + superior) / 2.0;
+        // Centro vertical: el promedio de los puntos marcados (o el valor de f en el centro)
+        double suma = 0;
+        int cantidad = 0;
+        for (int i = 0; i < puntosMarcados.size(); i++) {
+            double y = puntosMarcados.get(i)[1];
+            if (!Double.isNaN(y) && !Double.isInfinite(y)) {
+                suma += y;
+                cantidad++;
+            }
+        }
+        if (cantidad > 0) {
+            this.centroY = suma / cantidad;
+        } else if (funcion != null) {
+            double y = funcion.evaluarEn(variable, centroX, valorOtraVariable);
+            this.centroY = Double.isNaN(y) || Double.isInfinite(y) ? 0 : y;
+        }
+        repaint();
+    }
+
     /** Borra todas las curvas. */
     public void limpiar() {
+        this.curvaBaseArea = null;
+        this.puntosMarcados.clear();
+        this.etiquetasPuntos.clear();
         this.funcion = null;
         this.curvaSecundaria = null;
         this.curvaImplicita = null;
@@ -298,6 +368,7 @@ public class PanelGrafico2D extends JPanel {
             dibujarCurva(g2, funcion, COLOR_FUNCION, new BasicStroke(2.5f, BasicStroke.CAP_ROUND,
                     BasicStroke.JOIN_ROUND));
             dibujarPunto(g2);
+            dibujarPuntosMarcados(g2);
             dibujarLeyenda(g2);
         } else {
             dibujarMensajeVacio(g2);
@@ -465,7 +536,12 @@ public class PanelGrafico2D extends JPanel {
         double limite = getHeight() * 3.0;
 
         Path2D.Double region = new Path2D.Double();
-        region.moveTo(aPantallaX(a), yCero);
+        if (curvaBaseArea != null) {
+            double yInicio = curvaBaseArea.evaluarEn(variable, a, valorOtraVariable);
+            region.moveTo(aPantallaX(a), Double.isNaN(yInicio) || Double.isInfinite(yInicio) ? yCero : aPantallaY(yInicio));
+        } else {
+            region.moveTo(aPantallaX(a), yCero);
+        }
         for (int px = pxInicio; px <= pxFin; px++) {
             double xMundo = aMundoX(px);
             if (xMundo < a) {
@@ -481,7 +557,20 @@ public class PanelGrafico2D extends JPanel {
             double py = Math.max(-limite, Math.min(getHeight() + limite, aPantallaY(yMundo)));
             region.lineTo(aPantallaX(xMundo), py);
         }
-        region.lineTo(aPantallaX(b), yCero);
+        if (curvaBaseArea != null) {
+            // Se regresa por la otra curva (de b hacia a) para cerrar la región entre ambas
+            for (int px = pxFin; px >= pxInicio; px--) {
+                double xMundo = Math.max(a, Math.min(b, aMundoX(px)));
+                double yBase = curvaBaseArea.evaluarEn(variable, xMundo, valorOtraVariable);
+                if (Double.isNaN(yBase) || Double.isInfinite(yBase)) {
+                    continue;
+                }
+                double py = Math.max(-limite, Math.min(getHeight() + limite, aPantallaY(yBase)));
+                region.lineTo(aPantallaX(xMundo), py);
+            }
+        } else {
+            region.lineTo(aPantallaX(b), yCero);
+        }
         region.closePath();
 
         Composite original = g2.getComposite();
@@ -584,6 +673,25 @@ public class PanelGrafico2D extends JPanel {
         g2.setFont(Tema.negrita(12f));
         g2.drawString("(" + FormatoNumeros.formatearExacto(puntoX.doubleValue()) + ", "
                 + FormatoNumeros.formatearExacto(puntoY.doubleValue()) + ")", (int) px + 10, (int) py - 10);
+    }
+
+    private void dibujarPuntosMarcados(Graphics2D g2) {
+        g2.setFont(Tema.negrita(12f));
+        for (int i = 0; i < puntosMarcados.size(); i++) {
+            double[] p = puntosMarcados.get(i);
+            if (Double.isNaN(p[1]) || Double.isInfinite(p[1])) {
+                continue;
+            }
+            double px = aPantallaX(p[0]);
+            double py = aPantallaY(p[1]);
+            g2.setColor(Tema.ADVERTENCIA);
+            g2.fill(new Ellipse2D.Double(px - 5, py - 5, 10, 10));
+            g2.setColor(COLOR_FONDO);
+            g2.setStroke(new BasicStroke(1.5f));
+            g2.draw(new Ellipse2D.Double(px - 5, py - 5, 10, 10));
+            g2.setColor(Tema.ADVERTENCIA);
+            g2.drawString(etiquetasPuntos.get(i), (int) px + 9, (int) py - 9);
+        }
     }
 
     private void dibujarLeyenda(Graphics2D g2) {

@@ -84,6 +84,6 @@ public class NodoConstante extends Nodo {
         if (simbolo != null) {
             return simbolo;
         }
-        return FormatoNumeros.formatear(valor);
+        return FormatoNumeros.formatearExacto(valor);
     }
 }

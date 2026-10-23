@@ -37,6 +37,8 @@ public enum ReglaCalculo {
     TRIGONOMETRICA("Derivada trigonométrica"),
     /** Derivadas de arcsin, arccos y arctan. */
     INVERSA("Derivada de función inversa"),
+    /** Derivadas de sinh, cosh y tanh. */
+    HIPERBOLICA("Derivada hiperbólica"),
     /** y = f^g, se toma logaritmo natural en ambos lados. */
     DERIVACION_LOGARITMICA("Derivación logarítmica"),
     /** Derivadas sucesivas f'', f''', ... */
@@ -89,6 +91,24 @@ public enum ReglaCalculo {
     ADITIVIDAD("Propiedad de aditividad del intervalo"),
     /** Integral con límites infinitos o con discontinuidad infinita. */
     IMPROPIA("Integral impropia"),
+    /** Aproximación numérica de una integral definida (Gauss-Kronrod). */
+    INT_NUMERICA("Integración numérica"),
+    /** Integrales de funciones hiperbólicas. */
+    INT_HIPERBOLICA("Integral hiperbólica"),
+    /** Fórmula de reducción para potencias de seno y coseno. */
+    REDUCCION("Fórmula de reducción"),
+    /** Integral del valor absoluto de una expresión lineal. */
+    INT_VALOR_ABSOLUTO("Integral del valor absoluto"),
+
+    // ------------------------------- Aplicaciones -------------------------------
+    /** Recta tangente y = f(a) + f'(a)(x - a). */
+    RECTA_TANGENTE("Recta tangente"),
+    /** Puntos críticos: f'(x) = 0. */
+    PUNTOS_CRITICOS("Puntos críticos"),
+    /** Criterio de la segunda derivada y puntos de inflexión. */
+    CRITERIO_SEGUNDA_DERIVADA("Criterio de la segunda derivada"),
+    /** Área entre dos curvas. */
+    AREA_ENTRE_CURVAS("Área entre curvas"),
 
     // --------------------------------- Comunes --------------------------------
     /** Se simplifica el resultado. */

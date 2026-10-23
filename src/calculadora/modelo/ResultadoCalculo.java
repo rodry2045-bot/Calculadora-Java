@@ -28,6 +28,12 @@ public class ResultadoCalculo {
         INTEGRAL_INDEFINIDA("Integral indefinida"),
         /** Integral definida en [a, b]. */
         INTEGRAL_DEFINIDA("Integral definida"),
+        /** Recta tangente y normal en un punto. */
+        RECTA_TANGENTE("Recta tangente"),
+        /** Máximos, mínimos y puntos de inflexión. */
+        EXTREMOS("Máximos y mínimos"),
+        /** Área entre dos curvas. */
+        AREA_ENTRE_CURVAS("Área entre curvas"),
         /** Evaluación numérica en un punto. */
         EVALUACION("Evaluación");
 
@@ -69,6 +75,9 @@ public class ResultadoCalculo {
     private Double puntoX;
     private Double puntoY;
     private String etiquetaSecundaria;
+    private final List<double[]> puntosMarcados = new ArrayList<double[]>();
+    private final List<String> etiquetasPuntos = new ArrayList<String>();
+    private Graficable curvaBaseArea;
 
     /**
      * @param tipo          operación realizada
@@ -311,5 +320,37 @@ public class ResultadoCalculo {
     /** @param etiquetaSecundaria leyenda de la curva secundaria */
     public void setEtiquetaSecundaria(String etiquetaSecundaria) {
         this.etiquetaSecundaria = etiquetaSecundaria;
+    }
+
+    /**
+     * Agrega un punto destacado para la gráfica (máximo, mínimo, inflexión...).
+     *
+     * @param x        abscisa
+     * @param y        ordenada
+     * @param etiqueta texto corto que se dibuja junto al punto
+     */
+    public void agregarPuntoMarcado(double x, double y, String etiqueta) {
+        puntosMarcados.add(new double[]{x, y});
+        etiquetasPuntos.add(etiqueta);
+    }
+
+    /** @return puntos destacados (copia) */
+    public List<double[]> getPuntosMarcados() {
+        return new ArrayList<double[]>(puntosMarcados);
+    }
+
+    /** @return etiquetas de los puntos destacados (copia) */
+    public List<String> getEtiquetasPuntos() {
+        return new ArrayList<String>(etiquetasPuntos);
+    }
+
+    /** @return curva inferior del área sombreada (área entre curvas) o null */
+    public Graficable getCurvaBaseArea() {
+        return curvaBaseArea;
+    }
+
+    /** @param curva curva inferior del área sombreada */
+    public void setCurvaBaseArea(Graficable curva) {
+        this.curvaBaseArea = curva;
     }
 }

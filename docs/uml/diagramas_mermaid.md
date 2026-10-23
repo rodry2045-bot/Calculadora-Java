@@ -2,47 +2,41 @@
 
 Estos diagramas se visualizan directamente en GitHub, GitLab o en VS Code (extensión *Markdown Preview Mermaid Support*).
 
-## Jerarquía de términos
+## Árbol de expresión (patrón Composite)
 
 ```mermaid
 classDiagram
-    class Termino {
+    class Nodo {
         <<abstract>>
-        #double coeficiente
-        #double exponenteX
-        #double exponenteY
         +evaluar(x, y) double
-        +derivar(v) Termino
-        +describirDerivada(v) String
-        +integrar(v) Termino
-        +describirIntegral(v) String
+        +clave() String
+        +reemplazar(objetivo, nuevo) Nodo
     }
-    class TerminoPolinomico
-    class TerminoFuncional {
+    class NodoConstante
+    class NodoVariable
+    class NodoBinario {
         <<abstract>>
-        #Variable variableFuncion
-        #double constanteK
-        #aplicarFuncion(arg) double
-        #derivarFuncion() Termino
-        #integrarFuncion() Termino
     }
-    class TerminoSeno
-    class TerminoCoseno
-    class TerminoExponencial
-    class TerminoLogaritmico
-    class Expresion {
-        -List~Termino~ terminos
-        +derivar(v) Expresion
-        +integrar(v) Expresion
-        +simplificar() Expresion
+    class NodoSuma
+    class NodoResta
+    class NodoProducto
+    class NodoCociente
+    class NodoPotencia
+    class NodoNegativo
+    class NodoFuncion {
+        -TipoFuncion tipo
+        -Nodo argumento
     }
-    Termino <|-- TerminoPolinomico
-    Termino <|-- TerminoFuncional
-    TerminoFuncional <|-- TerminoSeno
-    TerminoFuncional <|-- TerminoCoseno
-    TerminoFuncional <|-- TerminoExponencial
-    TerminoFuncional <|-- TerminoLogaritmico
-    Expresion o-- Termino
+    Nodo <|-- NodoConstante
+    Nodo <|-- NodoVariable
+    Nodo <|-- NodoBinario
+    Nodo <|-- NodoNegativo
+    Nodo <|-- NodoFuncion
+    NodoBinario <|-- NodoSuma
+    NodoBinario <|-- NodoResta
+    NodoBinario <|-- NodoProducto
+    NodoBinario <|-- NodoCociente
+    NodoBinario <|-- NodoPotencia
 ```
 
 ## Módulo de IA
@@ -72,16 +66,19 @@ classDiagram
 
 ```mermaid
 flowchart TD
-    A[Texto del usuario] --> B[AnalizadorExpresion]
-    B -->|ExpresionInvalidaException| X[Mensaje amable en la GUI]
-    B --> C[Expresion = suma de Terminos]
-    C --> D{Operación}
-    D -->|Derivada| E[derivar + describirDerivada por término]
-    D -->|Integral indefinida| F[integrar + describirIntegral + C]
-    D -->|Integral definida| G[validar dominio → F b − F a]
-    D -->|Evaluar| H[sustituir x, y]
-    E & F & G & H --> R[ResultadoCalculo con pasos]
-    R --> P[Pestaña Resultado y pasos]
+    A[Texto del usuario] --> V[Vista previa: fórmula dibujada y avisos]
+    A --> B[AnalizadorSimbolico]
+    B -->|ExpresionInvalidaException| X[Mensaje amable + sugerencia del Sugeridor]
+    B --> C[Árbol de expresión Nodo]
+    C --> D{Método elegido}
+    D -->|Derivadas| E[Derivador con pasos]
+    D -->|Límites| K[Limites + L'Hôpital]
+    D -->|Integral indefinida| F[Integrador + verificación + C]
+    D -->|Integral definida| G[F b − F a, impropias, comprobación numérica]
+    G -->|sin antiderivada elemental| N[IntegracionNumerica Gauss-Kronrod]
+    D -->|Aplicaciones| H[Tangente, extremos, área entre curvas]
+    E & K & F & G & N & H --> R[ResultadoCalculo con pasos y notas]
+    R --> P[Procedimiento, Historial y Exportar]
     R --> Q[PanelGrafico2D]
     R --> T[TutorIA en SwingWorker]
     T -->|sin red o sin clave| L[ExplicadorLocal]

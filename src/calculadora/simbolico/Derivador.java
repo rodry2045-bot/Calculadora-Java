@@ -335,6 +335,12 @@ public class Derivador {
                         Nodo.fn(TipoFuncion.RAIZ, Nodo.resta(Nodo.num(1), Nodo.pot(u, 2)))));
             case ARCTAN:
                 return Nodo.div(Nodo.num(1), Nodo.suma(Nodo.num(1), Nodo.pot(u, 2)));
+            case SINH:
+                return Nodo.fn(TipoFuncion.COSH, u);
+            case COSH:
+                return Nodo.fn(TipoFuncion.SINH, u);
+            case TANH:
+                return Nodo.div(Nodo.num(1), Nodo.pot(Nodo.fn(TipoFuncion.COSH, u), 2));
             default:
                 return Nodo.div(u, Nodo.fn(TipoFuncion.ABS, u));
         }
@@ -346,6 +352,9 @@ public class Derivador {
         }
         if (tipo.esInversa()) {
             return ReglaCalculo.INVERSA;
+        }
+        if (tipo.esHiperbolica()) {
+            return ReglaCalculo.HIPERBOLICA;
         }
         if (tipo == TipoFuncion.EXP) {
             return ReglaCalculo.EXPONENCIAL;
@@ -387,6 +396,12 @@ public class Derivador {
                 return "d/du[arccos(u)] = -1/√(1 - u²)";
             case ARCTAN:
                 return "d/du[arctan(u)] = 1/(1 + u²)";
+            case SINH:
+                return "d/du[sinh(u)] = cosh(u)";
+            case COSH:
+                return "d/du[cosh(u)] = sinh(u)";
+            case TANH:
+                return "d/du[tanh(u)] = 1/cosh(u)²";
             default:
                 return "d/du[|u|] = u/|u|";
         }

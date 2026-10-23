@@ -136,6 +136,17 @@ public class ExplicadorLocal {
             return "Vamos a calcular el límite de f = " + resultado.getExpresion() + ". Si al sustituir aparece "
                     + "0/0 o ∞/∞ se usa la regla de L'Hôpital.";
         }
+        if (tipo == ResultadoCalculo.TipoOperacion.RECTA_TANGENTE) {
+            return "Vamos a hallar la recta tangente a f = " + resultado.getExpresion() + ". Su pendiente es la "
+                    + "derivada en el punto, y la recta pasa por el punto de la curva.";
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.EXTREMOS) {
+            return "Vamos a buscar los máximos, mínimos y puntos de inflexión de f = " + resultado.getExpresion()
+                    + ". Donde la derivada vale 0 la curva deja de subir o de bajar.";
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.AREA_ENTRE_CURVAS) {
+            return "Vamos a calcular el área entre dos curvas: en cada tramo se integra la de arriba menos la de abajo.";
+        }
         return "Vamos a evaluar f = " + resultado.getExpresion() + " sustituyendo los valores indicados.";
     }
 
@@ -202,6 +213,15 @@ public class ExplicadorLocal {
         }
         if (tipo == ResultadoCalculo.TipoOperacion.DERIVADA_IMPLICITA) {
             return "cada vez que derives un término con y, multiplica por y' (regla de la cadena).";
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.RECTA_TANGENTE) {
+            return "la tangente toca la curva en un solo punto cercano y tiene su misma inclinación; mira la gráfica.";
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.EXTREMOS) {
+            return "si f'' es positiva la curva es una sonrisa (mínimo); si es negativa, un ceño (máximo).";
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.AREA_ENTRE_CURVAS) {
+            return "si las curvas se cruzan, divide el intervalo en los cruces para que ninguna parte reste.";
         }
         return "revisa los signos al sustituir valores negativos.";
     }

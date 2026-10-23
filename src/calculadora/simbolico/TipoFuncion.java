@@ -31,7 +31,13 @@ public enum TipoFuncion {
     /** Arcotangente. */
     ARCTAN("arctan"),
     /** Valor absoluto. */
-    ABS("abs");
+    ABS("abs"),
+    /** Seno hiperbólico. */
+    SINH("sinh"),
+    /** Coseno hiperbólico. */
+    COSH("cosh"),
+    /** Tangente hiperbólica. */
+    TANH("tanh");
 
     private final String nombre;
 
@@ -47,6 +53,11 @@ public enum TipoFuncion {
     /** @return true para sin, cos, tan, sec, csc y cot */
     public boolean esTrigonometrica() {
         return this == SIN || this == COS || this == TAN || this == SEC || this == CSC || this == COT;
+    }
+
+    /** @return true para sinh, cosh y tanh */
+    public boolean esHiperbolica() {
+        return this == SINH || this == COSH || this == TANH;
     }
 
     /** @return true para arcsin, arccos y arctan */
@@ -88,6 +99,12 @@ public enum TipoFuncion {
                 return Math.acos(u);
             case ARCTAN:
                 return Math.atan(u);
+            case SINH:
+                return Math.sinh(u);
+            case COSH:
+                return Math.cosh(u);
+            case TANH:
+                return Math.tanh(u);
             default:
                 return Math.abs(u);
         }

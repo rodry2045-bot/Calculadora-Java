@@ -32,7 +32,7 @@ import java.util.List;
 
 /**
  * Columna izquierda con la LISTA DE MÉTODOS: un selector "Derivadas /
- * Integrales", la lista de leyes y reglas, y una tarjeta con la fórmula,
+ * Integrales / Aplicaciones", la lista de leyes y reglas, y una tarjeta con la fórmula,
  * la explicación y un botón para cargar un ejemplo.
  */
 public class PanelMetodos extends JPanel {
@@ -61,8 +61,8 @@ public class PanelMetodos extends JPanel {
         JPanel superior = new JPanel(new BorderLayout(0, 8));
         superior.setOpaque(false);
         superior.add(PanelTarjeta.crearTitulo("Métodos y leyes"), BorderLayout.NORTH);
-        selectorCategoria = new GrupoSegmentado("Derivadas", "Integrales");
-        selectorCategoria.setFont(Tema.negrita(13f));
+        selectorCategoria = new GrupoSegmentado("Derivadas", "Integrales", "Aplicaciones");
+        selectorCategoria.setFont(Tema.negrita(12f));
         superior.add(selectorCategoria, BorderLayout.CENTER);
         tarjetaLista.add(superior, BorderLayout.NORTH);
 
@@ -157,8 +157,7 @@ public class PanelMetodos extends JPanel {
     }
 
     private void llenarLista() {
-        MetodoCalculo.Categoria categoria = selectorCategoria.getSeleccionado() == 0
-                ? MetodoCalculo.Categoria.DERIVADAS : MetodoCalculo.Categoria.INTEGRALES;
+        MetodoCalculo.Categoria categoria = MetodoCalculo.Categoria.values()[selectorCategoria.getSeleccionado()];
         modelo.clear();
         MetodoCalculo[] todos = MetodoCalculo.values();
         for (int i = 0; i < todos.length; i++) {
@@ -172,7 +171,11 @@ public class PanelMetodos extends JPanel {
     private void mostrarInformacion(MetodoCalculo metodo) {
         etiquetaNombre.setText(metodo.getNombre());
         textoFormula.setText(metodo.getFormula());
-        textoDescripcion.setText(metodo.getDescripcion() + "\nEjemplo: " + metodo.getEjemplo());
+        String ejemplo = metodo.getEjemplo();
+        if (metodo.usaFuncionG()) {
+            ejemplo = "f(x) = " + ejemplo + ",  g(x) = " + metodo.ejemploG();
+        }
+        textoDescripcion.setText(metodo.getDescripcion() + "\nEjemplo: " + ejemplo);
     }
 
     private void avisar(List<ActionListener> oyentes) {
@@ -194,7 +197,7 @@ public class PanelMetodos extends JPanel {
      * @param metodo método a seleccionar
      */
     public void seleccionar(MetodoCalculo metodo) {
-        selectorCategoria.setSeleccionado(metodo.getCategoria() == MetodoCalculo.Categoria.DERIVADAS ? 0 : 1);
+        selectorCategoria.setSeleccionado(metodo.getCategoria().ordinal());
         lista.setSelectedValue(metodo, true);
     }
 

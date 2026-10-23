@@ -12,6 +12,9 @@ import calculadora.modelo.Graficable;
 import calculadora.modelo.MetodoCalculo;
 import calculadora.modelo.ResultadoCalculo;
 import calculadora.modelo.Variable;
+import calculadora.simbolico.AnalizadorSimbolico;
+import calculadora.simbolico.Nodo;
+import calculadora.simbolico.Sugeridor;
 import calculadora.vista.componentes.BarraDesplazamientoModerna;
 import calculadora.vista.componentes.BotonModerno;
 import calculadora.vista.componentes.CampoModerno;
@@ -26,6 +29,12 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
+import javax.swing.JFileChooser;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -51,6 +60,11 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.print.PrinterException;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -83,7 +97,7 @@ public class VentanaCalculadora extends JFrame {
         {"ln", "ln()", "1"}, {"e^", "e^()", "1"}, {"√", "√()", "1"}, {"4", "4", "0"}, {"5", "5", "0"}, {"6", "6", "0"}, {"×", "*", "0"},
         {"x²", "^2", "0"}, {"xⁿ", "^", "0"}, {"π", "pi", "0"}, {"1", "1", "0"}, {"2", "2", "0"}, {"3", "3", "0"}, {"−", "-", "0"},
         {"x", "x", "0"}, {"y", "y", "0"}, {"( )", "()", "1"}, {"0", "0", "0"}, {".", ".", "0"}, {"=", " = ", "0"}, {"+", "+", "0"},
-        {"asin", "arcsin()", "1"}, {"atan", "arctan()", "1"}, {"1/x", "1/x", "0"}, {"∞", "∞", "0"}, {"−∞", "-∞", "0"},
+        {"asin", "arcsin()", "1"}, {"atan", "arctan()", "1"}, {"|x|", "||", "1"}, {"∞", "∞", "0"}, {"−∞", "-∞", "0"},
         {"←", "", "0"}, {"C", "", "0"}
     };
 
@@ -99,10 +113,19 @@ public class VentanaCalculadora extends JFrame {
     private JLabel etiquetaFuncion;
     private CampoModerno campoExpresion;
     private JComponent filaVariable;
+    private JLabel etiquetaVariable;
     private GrupoSegmentado selectorVariable;
+    private JComponent filaG;
+    private CampoModerno campoG;
+    private VistaFormula vistaFormula;
+    private JLabel etiquetaAviso;
+    private BotonModerno botonSugerencia;
+    private String sugerenciaActual;
+    private Timer temporizadorVista;
     private JComponent filaOrden;
     private CampoModerno campoOrden;
     private JComponent filaPunto;
+    private JLabel etiquetaPunto;
     private CampoModerno campoPunto;
     private JComponent filaTipoIntegral;
     private GrupoSegmentado selectorTipoIntegral;
@@ -119,6 +142,8 @@ public class VentanaCalculadora extends JFrame {
     private JLabel etiquetaTipoResultado;
     private JTextArea textoResultado;
     private BotonModerno botonCopiar;
+    private BotonModerno botonExportar;
+    private transient Historial historial;
 
     // Secciones
     private GrupoSegmentado navegacion;
@@ -141,6 +166,7 @@ public class VentanaCalculadora extends JFrame {
         super("Calculadora de Cálculo con Asistente de IA");
         this.calculadora = new Calculadora();
         this.tutor = new TutorIA(ConfiguracionIA.cargar());
+        this.historial = new Historial();
 
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setIconImages(Iconos.iconosVentana());
@@ -260,14 +286,25 @@ public class VentanaCalculadora extends JFrame {
         campoExpresion.setTextoAyuda("Ej.: x^2·sin(x)");
         registrarCampo(campoExpresion);
         contenido.add(alinear(campoExpresion));
-        contenido.add(Box.createVerticalStrut(14));
+        contenido.add(Box.createVerticalStrut(6));
+        contenido.add(crearVistaPrevia());
+        contenido.add(Box.createVerticalStrut(10));
+
+        // Segunda función g(x) (área entre curvas)
+        campoG = new CampoModerno("x^2", 20);
+        campoG.setFont(Tema.mono(17f));
+        campoG.setRelleno(9, 12);
+        registrarCampo(campoG);
+        filaG = fila("Segunda función g(x)", campoG, "El área se mide entre f(x) y g(x)");
+        contenido.add(filaG);
 
         // Variable
         selectorVariable = new GrupoSegmentado("x", "y");
         selectorVariable.setFont(Tema.mono(15f));
         selectorVariable.setOcuparAncho(false);
-        filaVariable = fila("Derivar respecto a", selectorVariable,
-                "La otra variable se trata como constante (derivada parcial)");
+        etiquetaVariable = PanelTarjeta.crearTitulo("Derivar respecto a");
+        filaVariable = fila(etiquetaVariable, selectorVariable,
+                "La otra variable (x o y) se trata como una constante");
         contenido.add(filaVariable);
 
         // Orden
@@ -277,7 +314,8 @@ public class VentanaCalculadora extends JFrame {
 
         // Punto del límite
         campoPunto = crearCampoNumero("0");
-        filaPunto = fila("x tiende a", campoPunto, "Un número, pi, ∞ o -∞ (use el teclado)");
+        etiquetaPunto = PanelTarjeta.crearTitulo("x tiende a");
+        filaPunto = fila(etiquetaPunto, campoPunto, "Un número, pi, ∞ o -∞ (en límites: 0+ o 0- para un solo lado)");
         contenido.add(filaPunto);
 
         // Tipo de integral
@@ -301,7 +339,7 @@ public class VentanaCalculadora extends JFrame {
         campoB = crearCampoNumero("1");
         limites.add(campoA);
         limites.add(campoB);
-        filaLimites = envolverFila(limites, "Admiten números, fracciones, pi, ∞ y -∞");
+        filaLimites = envolverFila(limites, "Números, pi, ∞ o -∞ (en el área pueden quedar vacíos)");
         contenido.add(filaLimites);
 
         // Punto intermedio c
@@ -338,10 +376,144 @@ public class VentanaCalculadora extends JFrame {
     }
 
     /** Fila con título, componente y ayuda opcional. */
+    /**
+     * Vista previa debajo de la función: dibuja la fórmula tal como la entendió
+     * la calculadora, muestra avisos de lectura y sugiere correcciones.
+     */
+    private JComponent crearVistaPrevia() {
+        vistaFormula = new VistaFormula();
+        vistaFormula.setMensaje("La fórmula aparecerá aquí mientras escribes");
+        etiquetaAviso = new JLabel(" ");
+        etiquetaAviso.setFont(Tema.texto(12f));
+        etiquetaAviso.setForeground(Tema.TEXTO_TENUE);
+        botonSugerencia = new BotonModerno("Usar sugerencia", BotonModerno.Estilo.SECUNDARIO);
+        botonSugerencia.setFont(Tema.negrita(12f));
+        botonSugerencia.setFocusable(false);
+        botonSugerencia.setVisible(false);
+        botonSugerencia.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                usarSugerencia();
+            }
+        });
+
+        JPanel panel = new JPanel(new BorderLayout(0, 4)) {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Dimension getMaximumSize() {
+                return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+            }
+        };
+        panel.setOpaque(false);
+        panel.setAlignmentX(0.0f);
+        panel.add(vistaFormula, BorderLayout.NORTH);
+        panel.add(etiquetaAviso, BorderLayout.CENTER);
+        JPanel abajo = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        abajo.setOpaque(false);
+        abajo.add(botonSugerencia);
+        panel.add(abajo, BorderLayout.SOUTH);
+
+        temporizadorVista = new Timer(220, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                actualizarVistaPrevia();
+            }
+        });
+        temporizadorVista.setRepeats(false);
+        campoExpresion.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                temporizadorVista.restart();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                temporizadorVista.restart();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                temporizadorVista.restart();
+            }
+        });
+        return panel;
+    }
+
+    /** Vuelve a interpretar la función y actualiza la vista previa. */
+    private void actualizarVistaPrevia() {
+        String texto = campoExpresion.getText();
+        sugerenciaActual = null;
+        botonSugerencia.setVisible(false);
+        if (texto == null || texto.trim().isEmpty()) {
+            vistaFormula.setMensaje("La fórmula aparecerá aquí mientras escribes");
+            etiquetaAviso.setForeground(Tema.TEXTO_TENUE);
+            etiquetaAviso.setText(" ");
+            revalidate();
+            return;
+        }
+        AnalizadorSimbolico analizador = new AnalizadorSimbolico();
+        try {
+            String limpio = AnalizadorSimbolico.quitarPrefijoFuncion(texto);
+            List<String> avisos = new ArrayList<String>();
+            int igual = limpio.indexOf('=');
+            if (igual >= 0) {
+                Nodo izquierda = analizador.analizar(limpio.substring(0, igual));
+                avisos.addAll(analizador.getAvisos());
+                Nodo derecha = analizador.analizar(limpio.substring(igual + 1));
+                avisos.addAll(analizador.getAvisos());
+                vistaFormula.setEcuacion(izquierda, derecha);
+            } else {
+                vistaFormula.setFormula(analizador.analizar(limpio));
+                avisos.addAll(analizador.getAvisos());
+            }
+            if (avisos.isEmpty()) {
+                etiquetaAviso.setForeground(Tema.TEXTO_TENUE);
+                etiquetaAviso.setText("Así entiende la calculadora tu función.");
+            } else {
+                StringBuilder html = new StringBuilder("<html><div style='width:280px'>");
+                for (int i = 0; i < avisos.size(); i++) {
+                    html.append("<b>Ojo:</b> ").append(RenderizadorHtml.escapar(avisos.get(i))).append(".<br>");
+                }
+                html.append("</div></html>");
+                etiquetaAviso.setForeground(Tema.ADVERTENCIA);
+                etiquetaAviso.setText(html.toString());
+            }
+        } catch (ExpresionInvalidaException e) {
+            vistaFormula.setMensaje("Todavía no se puede leer la función");
+            sugerenciaActual = Sugeridor.sugerir(texto);
+            String mensaje = RenderizadorHtml.escapar(e.getMessage());
+            if (sugerenciaActual != null) {
+                mensaje = mensaje + ".<br>¿Quisiste decir <b>" + RenderizadorHtml.escapar(sugerenciaActual) + "</b>?";
+                botonSugerencia.setVisible(true);
+            }
+            etiquetaAviso.setForeground(Tema.ERROR);
+            etiquetaAviso.setText("<html><div style='width:280px'>" + mensaje + "</div></html>");
+        } catch (RuntimeException e) {
+            vistaFormula.setMensaje("Todavía no se puede leer la función");
+            etiquetaAviso.setText(" ");
+        }
+        revalidate();
+        repaint();
+    }
+
+    private void usarSugerencia() {
+        if (sugerenciaActual != null) {
+            campoExpresion.setText(sugerenciaActual);
+            campoExpresion.requestFocusInWindow();
+            actualizarVistaPrevia();
+            mostrarEstado("Se aplicó la sugerencia. Pulsa Calcular.", Tema.EXITO);
+        }
+    }
+
     private JComponent fila(String titulo, JComponent componente, String ayuda) {
+        return fila(PanelTarjeta.crearTitulo(titulo), componente, ayuda);
+    }
+
+    private JComponent fila(JLabel titulo, JComponent componente, String ayuda) {
         JPanel panel = new JPanel(new BorderLayout(0, 6));
         panel.setOpaque(false);
-        panel.add(PanelTarjeta.crearTitulo(titulo), BorderLayout.NORTH);
+        panel.add(titulo, BorderLayout.NORTH);
         JPanel envoltura = new JPanel(new BorderLayout());
         envoltura.setOpaque(false);
         if (componente instanceof GrupoSegmentado && !(componente == selectorTipoIntegral)) {
@@ -502,7 +674,32 @@ public class VentanaCalculadora extends JFrame {
                 copiarResultado();
             }
         });
-        superior.add(botonCopiar, BorderLayout.EAST);
+        final BotonModerno botonHistorial = new BotonModerno("Historial", BotonModerno.Estilo.FANTASMA);
+        botonHistorial.setFont(Tema.negrita(12f));
+        botonHistorial.setFocusable(false);
+        botonHistorial.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+        botonHistorial.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                mostrarHistorial(botonHistorial);
+            }
+        });
+        botonExportar = new BotonModerno("Exportar", BotonModerno.Estilo.FANTASMA);
+        botonExportar.setFont(Tema.negrita(12f));
+        botonExportar.setFocusable(false);
+        botonExportar.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+        botonExportar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                mostrarMenuExportar();
+            }
+        });
+        JPanel acciones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        acciones.setOpaque(false);
+        acciones.add(botonHistorial);
+        acciones.add(botonExportar);
+        acciones.add(botonCopiar);
+        superior.add(acciones, BorderLayout.EAST);
         tarjetaResultado.add(superior, BorderLayout.NORTH);
 
         textoResultado = new JTextArea();
@@ -656,21 +853,28 @@ public class VentanaCalculadora extends JFrame {
         MetodoCalculo metodo = panelMetodos.getSeleccionado();
         boolean definida = metodo.esDefinidaObligatoria()
                 || (metodo.usaTipoIntegral() && selectorTipoIntegral.getSeleccionado() == 1);
+        boolean integral = metodo.getCategoria() == MetodoCalculo.Categoria.INTEGRALES;
 
         if (metodo.getOperacion() == MetodoCalculo.Operacion.IMPLICITA) {
             etiquetaFuncion.setText("ECUACIÓN EN x E y (USE =)");
         } else if (metodo.getOperacion() == MetodoCalculo.Operacion.LIMITE) {
             etiquetaFuncion.setText("FUNCIÓN f(x) DEL LÍMITE");
-        } else if (metodo.getCategoria() == MetodoCalculo.Categoria.INTEGRALES) {
-            etiquetaFuncion.setText("INTEGRANDO f(x)");
+        } else if (integral) {
+            etiquetaFuncion.setText("INTEGRANDO f(x, y)");
+        } else if (metodo.getCategoria() == MetodoCalculo.Categoria.APLICACIONES) {
+            etiquetaFuncion.setText(metodo.usaFuncionG() ? "PRIMERA FUNCIÓN f(x)" : "FUNCIÓN f(x)");
         } else {
             etiquetaFuncion.setText("FUNCIÓN f(x, y)");
         }
+        etiquetaVariable.setText((integral ? "Integrar respecto a" : "Derivar respecto a").toUpperCase());
+        etiquetaPunto.setText((metodo.getOperacion() == MetodoCalculo.Operacion.TANGENTE
+                ? "Punto de tangencia (x = a)" : "x tiende a").toUpperCase());
         filaVariable.setVisible(metodo.usaVariable());
         filaOrden.setVisible(metodo.usaOrden());
         filaPunto.setVisible(metodo.usaPunto());
         filaTipoIntegral.setVisible(metodo.usaTipoIntegral());
-        filaLimites.setVisible(definida);
+        filaLimites.setVisible(definida || metodo.usaIntervalo());
+        filaG.setVisible(metodo.usaFuncionG());
         filaC.setVisible(metodo.usaPuntoIntermedio());
         revalidate();
         repaint();
@@ -686,7 +890,8 @@ public class VentanaCalculadora extends JFrame {
         campoB.setText(metodo.ejemploB());
         campoC.setText("1");
         campoOrden.setText("3");
-        campoPunto.setText("0");
+        campoPunto.setText(metodo.ejemploPunto());
+        campoG.setText(metodo.ejemploG());
         if (metodo == MetodoCalculo.D_PARCIAL) {
             selectorVariable.setSeleccionado(1);
         } else {
@@ -738,14 +943,20 @@ public class VentanaCalculadora extends JFrame {
         entrada.setLimiteA(campoA.getText());
         entrada.setLimiteB(campoB.getText());
         entrada.setPuntoC(campoC.getText());
+        entrada.setFuncionG(campoG.getText());
         entrada.setDefinida(metodo.esDefinidaObligatoria()
                 || (metodo.usaTipoIntegral() && selectorTipoIntegral.getSeleccionado() == 1));
         try {
             ResultadoCalculo resultado = calculadora.resolver(metodo, entrada);
             mostrarResultado(resultado);
+            historial.agregar(metodo, entrada);
         } catch (ExpresionInvalidaException e) {
-            mostrarError("Expresión no válida", e.getMessage()
-                    + ".  Ejemplos válidos: x^2·sin(x),  sin(x)/x,  e^(3x),  (3x + 5)/(x^2 + x - 2),  √(9 - x^2)");
+            String sugerencia = Sugeridor.sugerir(campoExpresion.getText());
+            String ayuda = sugerencia != null
+                    ? "  ¿Quisiste decir " + sugerencia + "? Pulsa «Usar sugerencia» debajo de la función."
+                    : "  Ejemplos válidos: x^2·sin(x),  sinx/x,  e^(3x),  (3x + 5)/(x^2 + x - 2),  √(9 - x^2)";
+            mostrarError("Expresión no válida", e.getMessage() + "." + ayuda);
+            actualizarVistaPrevia();
         } catch (OperacionNoSoportadaException e) {
             mostrarError("Método no aplicable", e.getMessage());
         } catch (DominioInvalidoException e) {
@@ -767,6 +978,7 @@ public class VentanaCalculadora extends JFrame {
         textoResultado.setForeground(Tema.TEXTO);
         textoResultado.setText(resultado.getTextoResultado());
         botonCopiar.setEnabled(true);
+        botonExportar.setEnabled(true);
 
         vistaPasos.setText(RenderizadorHtml.pasos(resultado));
         vistaPasos.setCaretPosition(0);
@@ -789,9 +1001,30 @@ public class VentanaCalculadora extends JFrame {
             return;
         }
         if (tipo == ResultadoCalculo.TipoOperacion.INTEGRAL_DEFINIDA) {
-            panelGrafico.graficar(funcion, funcion.toString(), null, null, Variable.X, 1.0);
+            panelGrafico.graficar(funcion, funcion.toString(), null, null, variable, 1.0);
             panelGrafico.sombrearArea(resultado.getLimiteInferior().doubleValue(),
                     resultado.getLimiteSuperior().doubleValue());
+            return;
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.AREA_ENTRE_CURVAS) {
+            panelGrafico.graficar(funcion, funcion.toString(), resultado.getExpresionResultado(),
+                    resultado.getEtiquetaSecundaria(), Variable.X, 1.0);
+            panelGrafico.setCurvaBaseArea(resultado.getCurvaBaseArea());
+            panelGrafico.sombrearArea(resultado.getLimiteInferior().doubleValue(),
+                    resultado.getLimiteSuperior().doubleValue());
+            return;
+        }
+        if (tipo == ResultadoCalculo.TipoOperacion.RECTA_TANGENTE || tipo == ResultadoCalculo.TipoOperacion.EXTREMOS) {
+            panelGrafico.graficar(funcion, funcion.toString(), resultado.getExpresionResultado(),
+                    resultado.getEtiquetaSecundaria(), Variable.X, 1.0);
+            panelGrafico.marcarPuntos(resultado.getPuntosMarcados(), resultado.getEtiquetasPuntos());
+            if (tipo == ResultadoCalculo.TipoOperacion.EXTREMOS) {
+                panelGrafico.enfocarIntervalo(resultado.getLimiteInferior().doubleValue(),
+                        resultado.getLimiteSuperior().doubleValue());
+            } else if (!resultado.getPuntosMarcados().isEmpty()) {
+                double x0 = resultado.getPuntosMarcados().get(0)[0];
+                panelGrafico.enfocarIntervalo(x0 - 4, x0 + 4);
+            }
             return;
         }
         if (tipo == ResultadoCalculo.TipoOperacion.LIMITE) {
@@ -814,6 +1047,7 @@ public class VentanaCalculadora extends JFrame {
         textoResultado.setForeground(new Color(254, 202, 202));
         textoResultado.setText(mensaje);
         botonCopiar.setEnabled(false);
+        botonExportar.setEnabled(false);
         ultimoResultado = null;
         vistaPasos.setText(RenderizadorHtml.estadoVacio("No se pudo completar el cálculo",
                 "Corrige la función o los datos y vuelve a pulsar Calcular."));
@@ -828,6 +1062,7 @@ public class VentanaCalculadora extends JFrame {
         textoResultado.setForeground(Tema.TEXTO_TENUE);
         textoResultado.setText("Elige un método en la lista, escribe la función y pulsa Calcular.");
         botonCopiar.setEnabled(false);
+        botonExportar.setEnabled(false);
         vistaPasos.setText(RenderizadorHtml.estadoVacio("Aquí verás el procedimiento paso a paso",
                 "Los pasos del método elegido aparecen resaltados en cian."));
         vistaExplicacion.setText(RenderizadorHtml.estadoVacio("Asistente de IA",
@@ -915,8 +1150,129 @@ public class VentanaCalculadora extends JFrame {
         } else {
             insigniaIA.actualizar("IA: Explicador local", Tema.ADVERTENCIA);
             etiquetaProveedor.setText("Proveedor: Explicador Local (sin conexión). La IA en línea se configura en "
-                    + "ConfiguracionIA.java.");
+                    + "config.properties (ver config.properties.ejemplo).");
         }
+    }
+
+    /** Muestra el menú con los últimos cálculos. */
+    private void mostrarHistorial(JComponent origen) {
+        JPopupMenu menu = new JPopupMenu();
+        List<Historial.Entrada> entradas = historial.getEntradas();
+        if (entradas.isEmpty()) {
+            JMenuItem vacio = itemMenu("Todavía no hay cálculos guardados");
+            vacio.setEnabled(false);
+            menu.add(vacio);
+        }
+        for (int i = 0; i < entradas.size(); i++) {
+            final Historial.Entrada entrada = entradas.get(i);
+            JMenuItem item = itemMenu(entrada.describir());
+            item.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    restaurar(entrada);
+                }
+            });
+            menu.add(item);
+        }
+        if (!entradas.isEmpty()) {
+            menu.addSeparator();
+            JMenuItem borrar = itemMenu("Borrar historial");
+            borrar.setForeground(Tema.ERROR);
+            borrar.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    historial.limpiar();
+                    mostrarEstado("Historial borrado.", Tema.TEXTO_SECUNDARIO);
+                }
+            });
+            menu.add(borrar);
+        }
+        menu.show(origen, 0, origen.getHeight());
+    }
+
+    /** Vuelve a cargar un cálculo del historial y lo calcula. */
+    private void restaurar(Historial.Entrada entrada) {
+        EntradaCalculo d = entrada.getDatos();
+        panelMetodos.seleccionar(entrada.getMetodo());
+        campoExpresion.setText(d.getExpresion());
+        selectorVariable.setSeleccionado(d.getVariable() == Variable.Y ? 1 : 0);
+        campoOrden.setText(d.getOrden());
+        campoPunto.setText(d.getPunto());
+        campoA.setText(d.getLimiteA());
+        campoB.setText(d.getLimiteB());
+        campoC.setText(d.getPuntoC());
+        campoG.setText(d.getFuncionG());
+        if (entrada.getMetodo().usaTipoIntegral()) {
+            selectorTipoIntegral.setSeleccionado(d.isDefinida() ? 1 : 0);
+        }
+        actualizarCamposSegunMetodo();
+        calcular();
+    }
+
+    /** Menú para guardar o imprimir el procedimiento. */
+    private void mostrarMenuExportar() {
+        if (ultimoResultado == null) {
+            return;
+        }
+        JPopupMenu menu = new JPopupMenu();
+        JMenuItem html = itemMenu("Guardar como página web (HTML)...");
+        html.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                guardarHtml();
+            }
+        });
+        JMenuItem imprimir = itemMenu("Imprimir o guardar como PDF...");
+        imprimir.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                imprimirProcedimiento();
+            }
+        });
+        menu.add(html);
+        menu.add(imprimir);
+        menu.show(botonExportar, 0, botonExportar.getHeight());
+    }
+
+    private void guardarHtml() {
+        JFileChooser selector = new JFileChooser();
+        selector.setDialogTitle("Guardar el procedimiento");
+        selector.setFileFilter(new FileNameExtensionFilter("Página web (*.html)", "html"));
+        selector.setSelectedFile(new File("procedimiento.html"));
+        if (selector.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File archivo = selector.getSelectedFile();
+        if (!archivo.getName().toLowerCase().endsWith(".html")) {
+            archivo = new File(archivo.getParentFile(), archivo.getName() + ".html");
+        }
+        try {
+            ExportadorProcedimiento.guardarHtml(ultimoResultado, archivo);
+            mostrarEstado("Procedimiento guardado en " + archivo.getAbsolutePath(), Tema.EXITO);
+        } catch (IOException ex) {
+            mostrarEstado("No se pudo guardar el archivo: " + ex.getMessage(), Tema.ERROR);
+        }
+    }
+
+    private void imprimirProcedimiento() {
+        try {
+            if (ExportadorProcedimiento.imprimir(ultimoResultado)) {
+                mostrarEstado("Procedimiento enviado a la impresora.", Tema.EXITO);
+            } else {
+                mostrarEstado("Impresión cancelada.", Tema.TEXTO_SECUNDARIO);
+            }
+        } catch (PrinterException ex) {
+            mostrarEstado("No se pudo imprimir: " + ex.getMessage(), Tema.ERROR);
+        }
+    }
+
+    private JMenuItem itemMenu(String texto) {
+        JMenuItem item = new JMenuItem(texto);
+        item.setFont(Tema.texto(13f));
+        item.setBackground(Tema.SUPERFICIE);
+        item.setForeground(Tema.TEXTO);
+        item.setOpaque(true);
+        return item;
     }
 
     private void copiarResultado() {
@@ -941,7 +1297,7 @@ public class VentanaCalculadora extends JFrame {
         String html = "<html><body style='font-family:" + Tema.familiaTexto() + "; font-size:13pt; color:"
                 + Tema.hex(Tema.TEXTO) + "'>"
                 + "<p><b style='color:" + c + "; font-size:15pt'>Cómo usar la calculadora</b></p>"
-                + "<p>1. Elige <b>Derivadas</b> o <b>Integrales</b> y un método de la lista.<br>"
+                + "<p>1. Elige <b>Derivadas</b>, <b>Integrales</b> o <b>Aplicaciones</b> y un método de la lista.<br>"
                 + "2. Escribe la función (o pulsa <b>Cargar ejemplo</b>).<br>"
                 + "3. Pulsa <b>Calcular</b>. Los pasos del método elegido aparecen resaltados.</p>"
                 + "<p><b style='color:" + c + "; font-size:15pt'>Cómo escribir las funciones</b></p>"
@@ -950,14 +1306,26 @@ public class VentanaCalculadora extends JFrame {
                 + filaAyuda("Productos", "3x,  x^2·sin(x),  x*e^x,  (x+1)(x-1)", m)
                 + filaAyuda("Cocientes", "sin(x)/x,  (3x + 5)/(x^2 + x - 2)", m)
                 + filaAyuda("Funciones", "sin cos tan sec csc cot  ln log  e^( )  √( )  arcsin arccos arctan", m)
+                + filaAyuda("En español", "sen,  arcsen,  arctg,  raiz( ),  senh", m)
+                + filaAyuda("Hiperbólicas", "sinh(x),  cosh(x),  tanh(x)", m)
+                + filaAyuda("Sin paréntesis", "sinx,  sin 2x,  ln x   (se leen sin(x), sin(2x), ln(x))", m)
                 + filaAyuda("Compuestas", "sin(x^2 + 1),  e^(x^2),  ln(cos(x))", m)
+                + filaAyuda("Otros", "|x|  (valor absoluto),  5!  (factorial)", m)
                 + filaAyuda("Constantes", "pi,  e", m)
                 + filaAyuda("Implícita", "x^2 + y^2 = 25", m)
-                + filaAyuda("Límites", "∞,  -∞,  0,  pi/2   (en 'x tiende a', a y b)", m)
+                + filaAyuda("Límites", "∞,  -∞,  0,  pi/2,  0+  o  0-  (por un solo lado)", m)
                 + "</table>"
+                + "<p><b style='color:" + c + "'>¡Cuidado con los paréntesis!</b><br>"
+                + "<span style='font-family:" + m + "'>e^2x</span> es e²·x; para e elevado a 2x escribe "
+                + "<span style='font-family:" + m + "'>e^(2x)</span>. <span style='font-family:" + m + "'>1/2x</span> "
+                + "es x/2; para 1 entre 2x escribe <span style='font-family:" + m + "'>1/(2x)</span>. "
+                + "Debajo de la función verás siempre cómo la entendió la calculadora.</p>"
                 + "<p><b style='color:" + c + "'>Teclado</b><br>Escribe donde está el cursor: en la función o en los "
                 + "límites. Las teclas ∞ y −∞ sirven para límites e integrales impropias.</p>"
                 + "<p><b style='color:" + c + "'>Gráfica</b><br>Rueda = zoom, arrastrar = mover, doble clic = restablecer.</p>"
+                + "<p><b style='color:" + c + "'>Historial y exportar</b><br>«Historial» vuelve a abrir tus últimos "
+                + "cálculos. «Exportar» guarda el procedimiento como página web o lo imprime (elige «Microsoft Print to "
+                + "PDF» para obtener un PDF).</p>"
                 + "</body></html>";
         vistaPasos.setText(html);
         vistaPasos.setCaretPosition(0);

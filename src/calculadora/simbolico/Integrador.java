@@ -196,6 +196,23 @@ public class Integrador {
             return resultado;
         }
 
+        // 5b) Fórmula de reducción: sin(u)^n y cos(u)^n con n ≥ 3
+        Nodo reduccion = reduccion(g, v, prof, permitirPartes);
+        if (reduccion != null) {
+            return reduccion;
+        }
+
+        // 5c) Producto de senos y cosenos con distinto argumento: sin(x)·sin(2x)
+        Nodo productoSuma = productoASuma(g, v);
+        if (productoSuma != null) {
+            PasoDetallado paso = registro.agregar(ReglaCalculo.IDENTIDAD_TRIG, "Identidad de producto a suma", prof,
+                    integral, "Se usa sin A·sin B = [cos(A-B) - cos(A+B)]/2, cos A·cos B = [cos(A-B) + cos(A+B)]/2 "
+                            + "o sin A·cos B = [sin(A+B) + sin(A-B)]/2: " + g + " = " + productoSuma);
+            Nodo resultado = s(integrarRec(productoSuma, v, prof + 1, permitirPartes));
+            paso.setResultado(resultado.toString());
+            return resultado;
+        }
+
         // 6) Desarrollo de polinomios: (x+1)(x-2), (x^2+1)^2...
         Polinomio polinomio = Polinomio.desde(g, v);
         if (polinomio != null) {
@@ -219,6 +236,12 @@ public class Integrador {
         Nodo racional = new IntegradorRacional(this).integrar(g, v, prof);
         if (racional != null) {
             return racional;
+        }
+
+        // 8b) Funciones de e^(kx): se sustituye u = e^(kx) y queda una función racional
+        Nodo exponencial = sustitucionExponencial(g, v, prof, permitirPartes);
+        if (exponencial != null) {
+            return exponencial;
         }
 
         // 9) Distribución: x·(x + e^x) = x^2 + x·e^x
@@ -364,6 +387,32 @@ public class Integrador {
         String nota = notaLineal(u, lin, v);
         Nodo r = null;
         String formula = null;
+        ReglaCalculo regla = ReglaCalculo.INT_TRIGONOMETRICA;
+        if (tipo.esHiperbolica() || tipo == TipoFuncion.ABS) {
+            regla = tipo == TipoFuncion.ABS ? ReglaCalculo.INT_VALOR_ABSOLUTO : ReglaCalculo.INT_HIPERBOLICA;
+            if (FormatoNumeros.sonIguales(n, 1.0)) {
+                if (tipo == TipoFuncion.SINH) {
+                    r = Nodo.fn(TipoFuncion.COSH, u);
+                    formula = "∫sinh(u) du = cosh(u)";
+                } else if (tipo == TipoFuncion.COSH) {
+                    r = Nodo.fn(TipoFuncion.SINH, u);
+                    formula = "∫cosh(u) du = sinh(u)";
+                } else if (tipo == TipoFuncion.TANH) {
+                    r = Nodo.fn(TipoFuncion.LN, Nodo.fn(TipoFuncion.COSH, u));
+                    formula = "∫tanh(u) du = ln(cosh(u))";
+                } else {
+                    r = Nodo.div(Nodo.mul(u, Nodo.fn(TipoFuncion.ABS, u)), Nodo.num(2));
+                    formula = "∫|u| du = u·|u|/2  (vale u²/2 si u ≥ 0 y -u²/2 si u < 0)";
+                }
+            } else if (FormatoNumeros.sonIguales(n, -2.0) && tipo == TipoFuncion.COSH) {
+                r = Nodo.fn(TipoFuncion.TANH, u);
+                formula = "∫1/cosh(u)² du = tanh(u)";
+            }
+            if (r == null) {
+                return null;
+            }
+            return new Object[]{Nodo.div(r, k), regla, formula + nota};
+        }
         if (FormatoNumeros.sonIguales(n, 1.0)) {
             switch (tipo) {
                 case SIN:
@@ -407,7 +456,7 @@ public class Integrador {
         if (r == null) {
             return null;
         }
-        return new Object[]{Nodo.div(r, k), ReglaCalculo.INT_TRIGONOMETRICA, formula + nota};
+        return new Object[]{Nodo.div(r, k), regla, formula + nota};
     }
 
     private String notaLineal(Nodo u, double[] lin, Variable v) {
@@ -421,6 +470,211 @@ public class Integrador {
     // ==================================================================
     // Identidades, distribución y constantes
     // ==================================================================
+
+    /**
+     * Fórmula de reducción para sin(u)^n y cos(u)^n con n entero ≥ 3 y u lineal:
+     * ∫sinⁿu du = -sinⁿ⁻¹u·cos u/n + (n-1)/n·∫sinⁿ⁻²u du
+     * ∫cosⁿu du =  cosⁿ⁻¹u·sin u/n + (n-1)/n·∫cosⁿ⁻²u du
+     */
+    private Nodo reduccion(Nodo g, Variable v, int prof, boolean permitirPartes) throws OperacionNoSoportadaException {
+        if (!(g instanceof NodoPotencia)) {
+            return null;
+        }
+        NodoPotencia p = (NodoPotencia) g;
+        if (!p.getExponente().esNumero() || !(p.getBase() instanceof NodoFuncion)) {
+            return null;
+        }
+        double n = ((NodoConstante) p.getExponente()).getValor();
+        NodoFuncion f = (NodoFuncion) p.getBase();
+        if (n < 3 || n > 12 || Math.abs(n - Math.rint(n)) > 1e-12
+                || (f.getTipo() != TipoFuncion.SIN && f.getTipo() != TipoFuncion.COS)) {
+            return null;
+        }
+        Nodo u = f.getArgumento();
+        double[] lin = lineal(u, v);
+        if (lin == null) {
+            return null;
+        }
+        boolean seno = f.getTipo() == TipoFuncion.SIN;
+        Nodo sinU = Nodo.fn(TipoFuncion.SIN, u);
+        Nodo cosU = Nodo.fn(TipoFuncion.COS, u);
+        Nodo primera;
+        if (seno) {
+            primera = Nodo.div(Nodo.neg(Nodo.mul(Nodo.pot(sinU, n - 1), cosU)), Nodo.num(n * lin[0]));
+        } else {
+            primera = Nodo.div(Nodo.mul(Nodo.pot(cosU, n - 1), sinU), Nodo.num(n * lin[0]));
+        }
+        Nodo menor = Nodo.pot(seno ? sinU : cosU, n - 2);
+        String nombre = seno ? "sin" : "cos";
+        String x = v.getSimbolo();
+        PasoDetallado paso = registro.agregar(ReglaCalculo.REDUCCION, ReglaCalculo.REDUCCION.getNombre(), prof,
+                "∫ " + g + " d" + x, seno
+                        ? "∫sinⁿ(u) du = -sinⁿ⁻¹(u)·cos(u)/n + (n-1)/n·∫sinⁿ⁻²(u) du  con n = " + FormatoNumeros.formatear(n)
+                        : "∫cosⁿ(u) du = cosⁿ⁻¹(u)·sin(u)/n + (n-1)/n·∫cosⁿ⁻²(u) du  con n = " + FormatoNumeros.formatear(n));
+        paso.setResultado(s(primera) + " + " + FormatoNumeros.formatear((n - 1) / n) + "·∫ " + s(menor) + " d" + x
+                + "  (se repite hasta llegar a " + nombre + "² o " + nombre + ")");
+        Nodo resto = integrarRec(s(menor), v, prof + 1, permitirPartes);
+        Nodo resultado = s(Nodo.suma(primera, Nodo.mul(Nodo.num((n - 1) / n), resto)));
+        paso.setResultado(resultado.toString());
+        return resultado;
+    }
+
+    /**
+     * Identidades de producto a suma para sin(A)·sin(B), cos(A)·cos(B) y
+     * sin(A)·cos(B) cuando A y B son lineales y distintos.
+     */
+    private Nodo productoASuma(Nodo g, Variable v) {
+        Simplificador.Monomio m = monomio(g);
+        if (m.factores.size() != 2 || m.argumentoExp != null) {
+            return null;
+        }
+        List<Nodo[]> factores = new ArrayList<Nodo[]>(m.factores.values());
+        if (!s(factores.get(0)[1]).esNumero(1.0) || !s(factores.get(1)[1]).esNumero(1.0)
+                || !(factores.get(0)[0] instanceof NodoFuncion) || !(factores.get(1)[0] instanceof NodoFuncion)) {
+            return null;
+        }
+        NodoFuncion f1 = (NodoFuncion) factores.get(0)[0];
+        NodoFuncion f2 = (NodoFuncion) factores.get(1)[0];
+        TipoFuncion t1 = f1.getTipo();
+        TipoFuncion t2 = f2.getTipo();
+        boolean validos = (t1 == TipoFuncion.SIN || t1 == TipoFuncion.COS) && (t2 == TipoFuncion.SIN || t2 == TipoFuncion.COS);
+        if (!validos || f1.getArgumento().igualA(f2.getArgumento())) {
+            return null;
+        }
+        if (lineal(f1.getArgumento(), v) == null || lineal(f2.getArgumento(), v) == null) {
+            return null;
+        }
+        if (t1 == TipoFuncion.COS && t2 == TipoFuncion.SIN) {
+            NodoFuncion temporal = f1;
+            f1 = f2;
+            f2 = temporal;
+            t1 = TipoFuncion.SIN;
+            t2 = TipoFuncion.COS;
+        }
+        Nodo a = f1.getArgumento();
+        Nodo b = f2.getArgumento();
+        Nodo resta = s(Nodo.resta(a, b));
+        Nodo suma = s(Nodo.suma(a, b));
+        // Se escribe A - B con coeficiente positivo: cos(-u) = cos(u) y sin(-u) = -sin(u)
+        double[] linResta = lineal(resta, v);
+        boolean invertida = linResta != null && linResta[0] < 0;
+        if (invertida) {
+            resta = s(Nodo.neg(resta));
+        }
+        Nodo resultado;
+        if (t1 == TipoFuncion.SIN && t2 == TipoFuncion.SIN) {
+            resultado = Nodo.div(Nodo.resta(Nodo.fn(TipoFuncion.COS, resta), Nodo.fn(TipoFuncion.COS, suma)), Nodo.num(2));
+        } else if (t1 == TipoFuncion.COS) {
+            resultado = Nodo.div(Nodo.suma(Nodo.fn(TipoFuncion.COS, resta), Nodo.fn(TipoFuncion.COS, suma)), Nodo.num(2));
+        } else if (invertida) {
+            resultado = Nodo.div(Nodo.resta(Nodo.fn(TipoFuncion.SIN, suma), Nodo.fn(TipoFuncion.SIN, resta)), Nodo.num(2));
+        } else {
+            resultado = Nodo.div(Nodo.suma(Nodo.fn(TipoFuncion.SIN, suma), Nodo.fn(TipoFuncion.SIN, resta)), Nodo.num(2));
+        }
+        resultado = s(Nodo.mul(Nodo.num(m.coeficiente), resultado));
+        if (!(resultado instanceof NodoSuma || resultado instanceof NodoResta || resultado instanceof NodoCociente
+                || resultado instanceof NodoProducto)) {
+            return null;
+        }
+        return resultado;
+    }
+
+    /**
+     * Si la variable solo aparece dentro de exponenciales e^(c·x) (con los c
+     * múltiplos enteros de un mismo k), se sustituye u = e^(kx), du = k·u dx y
+     * queda una integral racional en u. Ejemplo: ∫1/(e^x + 1) dx.
+     */
+    private Nodo sustitucionExponencial(Nodo g, Variable v, int prof, boolean permitirPartes) {
+        List<Nodo> exponenciales = new ArrayList<Nodo>();
+        if (!soloEnExponenciales(g, v, exponenciales) || exponenciales.isEmpty()) {
+            return null;
+        }
+        double k = 0;
+        boolean todosNegativos = true;
+        for (int i = 0; i < exponenciales.size(); i++) {
+            double[] lin = lineal(((NodoFuncion) exponenciales.get(i)).getArgumento(), v);
+            if (lin == null || Math.abs(lin[1]) > 1e-12) {
+                return null;
+            }
+            if (k == 0 || Math.abs(lin[0]) < Math.abs(k)) {
+                k = Math.abs(lin[0]);
+            }
+            if (lin[0] > 0) {
+                todosNegativos = false;
+            }
+        }
+        if (todosNegativos) {
+            k = -k; // u = e^(-kx)
+        }
+        Nodo u = Nodo.var(Variable.U);
+        Nodo enU = g;
+        for (int i = 0; i < exponenciales.size(); i++) {
+            Nodo e = exponenciales.get(i);
+            double c = lineal(((NodoFuncion) e).getArgumento(), v)[0];
+            double multiplo = c / k;
+            if (Math.abs(multiplo - Math.rint(multiplo)) > 1e-9) {
+                return null;
+            }
+            enU = enU.reemplazar(e, Nodo.pot(u, Math.rint(multiplo)));
+        }
+        enU = s(Nodo.div(enU, Nodo.mul(Nodo.num(k), u)));
+        if (enU.dependeDe(v) || !IntegradorRacional.esRacional(enU, Variable.U)) {
+            return null;
+        }
+        Nodo eK = s(Nodo.fn(TipoFuncion.EXP, Nodo.mul(Nodo.num(k), Nodo.var(v))));
+        String x = v.getSimbolo();
+        Object[] marca = registro.marca();
+        PasoDetallado paso = registro.agregar(ReglaCalculo.SUSTITUCION, ReglaCalculo.SUSTITUCION.getNombre(), prof,
+                "∫ " + g + " d" + x, "Sea u = " + eK + ", entonces du = " + s(Nodo.mul(Nodo.num(k), eK)) + " d" + x
+                        + ", es decir d" + x + " = du/(" + FormatoNumeros.formatear(k) + "u). La integral se transforma en ∫ "
+                        + enU + " du");
+        try {
+            Nodo enTerminosDeU = integrarRec(enU, Variable.U, prof + 1, permitirPartes);
+            Nodo resultado = s(s(enTerminosDeU).reemplazar(u, eK));
+            PasoDetallado regreso = registro.agregar(ReglaCalculo.SUSTITUCION, "Regreso a la variable " + x,
+                    prof + 1, "u = " + eK, "Se sustituye u por " + eK + " en " + s(enTerminosDeU));
+            regreso.setResultado(resultado.toString());
+            paso.setResultado(resultado.toString());
+            return resultado;
+        } catch (OperacionNoSoportadaException e) {
+            registro.restaurar(marca);
+            return null;
+        }
+    }
+
+    /** @return true si v solo aparece dentro de nodos e^(...); los guarda en la lista */
+    private boolean soloEnExponenciales(Nodo n, Variable v, List<Nodo> lista) {
+        if (!n.dependeDe(v)) {
+            return true;
+        }
+        if (n instanceof NodoFuncion && ((NodoFuncion) n).getTipo() == TipoFuncion.EXP) {
+            for (int i = 0; i < lista.size(); i++) {
+                if (lista.get(i).igualA(n)) {
+                    return true;
+                }
+            }
+            lista.add(n);
+            return true;
+        }
+        if (n instanceof NodoVariable || n instanceof NodoFuncion) {
+            return false;
+        }
+        if (n instanceof NodoPotencia) {
+            NodoPotencia p = (NodoPotencia) n;
+            if (p.getExponente().dependeDe(v)) {
+                return false;
+            }
+            return soloEnExponenciales(p.getBase(), v, lista);
+        }
+        if (n instanceof NodoBinario) {
+            return soloEnExponenciales(((NodoBinario) n).getIzquierdo(), v, lista)
+                    && soloEnExponenciales(((NodoBinario) n).getDerecho(), v, lista);
+        }
+        if (n instanceof NodoNegativo) {
+            return soloEnExponenciales(((NodoNegativo) n).getArgumento(), v, lista);
+        }
+        return false;
+    }
 
     private Nodo identidadTrigonometrica(Nodo g, Variable v) {
         if (!(g instanceof NodoPotencia)) {
